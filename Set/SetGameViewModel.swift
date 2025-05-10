@@ -9,9 +9,10 @@ import Foundation
 import SwiftUI
 
 class SetGameViewModel: ObservableObject {
+    //MARK: -Properties
     @Published var game: SetGame = createGame()
     
-    
+    //MARK: -Computed Properties
     var cards: [SetGame.Card] {
         game.cards
     }
@@ -23,25 +24,19 @@ class SetGameViewModel: ObservableObject {
     var tableCards: [SetGame.Card] {
         game.tableCards
     }
-        
+    
+    //MARK: -Intents
     private static func createGame() -> SetGame {
         SetGame(
             numbers: [1,2,3],
             features1: ["red","blue","green"],
-            features2: ["circle","rectangle","capsule"],
+            features2: ["diamond","rectangle","capsule"],
             features3: ["solid","striped","empty"],
             display: 12
         )
-        // test
-//        SetGame(
-//            numbers: [1,2],
-//            colors: ["red","blue"],
-//            shapes: ["circle","rectangle"],
-//            shadings: ["solid","striped"],
-//            display: 12
-//        )
     }
     
+    //MARK: -Public Methods
     func color(for card: SetGame.Card) -> Color {
         switch card.feature1 {
         case "blue": return .blue
@@ -67,15 +62,16 @@ class SetGameViewModel: ObservableObject {
     @ViewBuilder
     func shape(for card: SetGame.Card) -> some View {
         switch card.feature2 {
-        case "circle": applyShading(to: Circle(), shading: card.feature3).aspectRatio(1, contentMode: .fit)
+        case "diamond": applyShading(to: Diamond(), shading: card.feature3).aspectRatio(2, contentMode: .fit)
         case "rectangle": applyShading(to: Rectangle(), shading: card.feature3).aspectRatio(2, contentMode: .fit)
         case "capsule": applyShading(to: Capsule(), shading: card.feature3).aspectRatio(2, contentMode: .fit)
         default: Text("Error")
         }
     }
     
+    //MARK: -Private Methods
     @ViewBuilder
-    func applyShading(to shape: some Shape, shading: String) -> some View {
+    private func applyShading(to shape: some Shape, shading: String) -> some View {
         switch shading {
         case "solid": shape
         case "striped": shape.opacity(0.3)
@@ -98,3 +94,5 @@ class SetGameViewModel: ObservableObject {
     }
     
 }
+
+

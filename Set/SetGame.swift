@@ -114,7 +114,7 @@ struct SetGame {
     }
     
     // MARK: - Private Methods
-    mutating func removeSet() {
+    mutating private func removeSet() {
         for matchedCard in matchedCards {
             if let index = cards.firstIndex(where: { $0.id == matchedCard.id }) {
                 cards[index].isSelected.toggle()
@@ -124,7 +124,7 @@ struct SetGame {
         }
     }
     
-    func doTheySet(cards: [Card]) -> Bool {
+    private func doTheySet(cards: [Card]) -> Bool {
         let features: [Int] = [0,1,2,3]
         var feats: [[String]] = [[], [], [], []]
         
@@ -142,7 +142,7 @@ struct SetGame {
         return feats.allSatisfy({ $0.allThreeEqual || $0.allThreeDifferent })
     }
     
-    mutating func setChecker() {
+    mutating private func setChecker() {
         if doTheySet(cards: selectedCards) {
             for card in selectedCards {
                 if let index = cards.firstIndex(where: { $0.id == card.id }) {
@@ -159,19 +159,19 @@ struct SetGame {
     }
     
     
-    mutating func toggleSelection(of card: Card) {
+    private mutating func toggleSelection(of card: Card) {
         if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
             cards[selectedIndex].isSelected.toggle()
         }
     }
     
-    mutating func toggleMatching(of card: Card) {
+    private mutating func toggleMatching(of card: Card) {
         if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
             cards[selectedIndex].isMatched.toggle()
         }
     }
     
-    mutating func toggleMisMatching(of card: Card) {
+    private mutating func toggleMisMatching(of card: Card) {
         if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
             cards[selectedIndex].isMisMatched.toggle()
         }

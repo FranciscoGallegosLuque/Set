@@ -28,8 +28,6 @@ struct SetGameView: View {
             .font(.largeTitle)
             .fontWeight(.bold)
             .padding(.top)
-            .zIndex(100)
-            
     }
     
     var controlButtons: some View {
@@ -38,7 +36,7 @@ struct SetGameView: View {
                 vm.startNewGame()
             }
             .buttonStyle(.borderedProminent)
-            Button("3 more cards") {
+            Button("Deal cards") {
                 vm.addThree()
             }
             .buttonStyle(.borderedProminent)
@@ -56,6 +54,7 @@ struct SetGameView: View {
         }
     }
 }
+
 
 #Preview {
     SetGameView(vm: SetGameViewModel())

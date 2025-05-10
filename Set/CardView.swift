@@ -19,9 +19,7 @@ struct CardView: View {
                 base.strokeBorder(lineWidth: 1)
                 VStack {
                     ForEach(0..<card.number, id: \.self) { _ in
-                        ZStack {
-                            vm.shape(for: card)
-                        }
+                        vm.shape(for: card)
                     }
                 }
                 .padding()
@@ -36,7 +34,7 @@ struct CardView: View {
              card: SetGame.Card(
                 number: 2,
                 feature1: "red",
-                feature2: "circle",
+                feature2: "diamond",
                 feature3: "striped"
         )
     )
