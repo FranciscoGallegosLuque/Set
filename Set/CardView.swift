@@ -8,29 +8,40 @@
 import SwiftUI
 
 struct CardView: View {
-    var vm: SetGameViewModel
+    private(set) var viewModel: SetGameViewModel
     let card: SetGame.Card
 
     var body: some View {
-        ZStack(content: {
-            let base: RoundedRectangle = RoundedRectangle(cornerRadius: 12)
-            Group {
-                base.foregroundStyle(vm.cardBackgroundColor(for: card))
-                base.strokeBorder(lineWidth: 1)
-                VStack {
-                    ForEach(0..<card.number, id: \.self) { _ in
-                        vm.shape(for: card)
-                    }
-                }
-                .padding()
+        cardContents
+            .cardify(selectionColor: viewModel.cardBackgroundColor(for: card))
+            .foregroundStyle(viewModel.color(for: card))
+    }
+    
+    var cardContents: some View {
+        VStack {
+            ForEach(0..<card.number, id: \.self) { _ in
+                viewModel.shape(for: card)
             }
-            .foregroundStyle(vm.color(for: card))
-        })
+        }
+            .minimumScaleFactor(Constants.FontSize.scaleFactor)
+            .multilineTextAlignment(.center)
+            .padding()
+    }
+    
+    private struct Constants {
+        static let cornerRadius: CGFloat = 12
+        static let lineWidth: CGFloat = 2
+        static let inset: CGFloat = 5
+        struct FontSize {
+            static let largest: CGFloat = 200
+            static let smallest: CGFloat = 10
+            static let scaleFactor = smallest / largest
+        }
     }
 }
 
 #Preview {
-    CardView(vm: SetGameViewModel(),
+    CardView(viewModel: SetGameViewModel(),
              card: SetGame.Card(
                 number: 2,
                 feature1: "red",
