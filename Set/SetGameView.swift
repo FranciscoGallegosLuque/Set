@@ -55,6 +55,7 @@ struct SetGameView: View {
         Button("Deal cards") {
             viewModel.addThree()
         }
+        
     }
     
     

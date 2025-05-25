@@ -13,128 +13,114 @@ struct SetGame {
     private(set) var cards: [Card]
     
     // MARK: - Init
-    init(numbers: [Int],
-         features1: [String],
-         features2: [String],
-         features3: [String],
-         display amount: Int
-    ) {
+    init(theme: Theme, display amount: Int, numberOfItems: [Int]) {
         cards = []
         
-        for number in numbers {
-            for feature1 in features1 {
-                for feature2 in features2 {
-                    for feature3 in features3 {
-                        cards.append(Card(number: number, feature1: feature1, feature2: feature2, feature3: feature3))
+        for number in numberOfItems {
+            for f1 in theme.features[0].possibleValues {
+                for f2 in theme.features[1].possibleValues {
+                    for f3 in theme.features[2].possibleValues {
+                        cards.append(Card(numberOfItems: number, features: [f1, f2, f3]))
                     }
                 }
             }
         }
         
-        let cardsIndexes = Array(0..<cards.count - 1)
+        let cardsIndexes = Array(cards.indices)
         let randomIndexes = Array(cardsIndexes.shuffled().prefix(amount))
         for index in randomIndexes {
-            cards[index].status = .table
+            cards[index].deckStatus = .table
         }
     }
     
     // MARK: - Computed Properties
     var selectedCards: [Card] {
-        cards.filter { $0.isSelected }
+        cards.filter { $0.selectionStatus == .selected }
     }
     
     var matchedCards: [Card] {
-        cards.filter { $0.isMatched }
+        cards.filter { $0.selectionStatus == .matched }
     }
     
     var misMatchedCards: [Card] {
-        cards.filter { $0.isMisMatched }
+        cards.filter { $0.selectionStatus == .misMatched }
     }
     
     var deckCards: [Card] {
-        cards.filter { $0.status == .deck }
+        cards.filter { $0.deckStatus == .deck }
     }
     
     var tableCards: [Card] {
-        cards.filter { $0.status == .table }
+        cards.filter { $0.deckStatus == .table }
     }
     
     // MARK: - Public Methods
     mutating func addCards() {
-        if doTheySet(cards: selectedCards) {
+        if setChecker(cards: selectedCards) {
             removeSet()
         }
         let addedCards = Array(deckCards.shuffled().prefix(3))
         for card in addedCards {
             if let index = cards.firstIndex(where: { $0.id == card.id }) {
-                cards[index].status = .table
+                cards[index].deckStatus = .table
             }
         }
     }
     
     mutating func handleCardSelection(card: Card) {
-        if selectedCards.count < 2 {
+        switch selectedCards.count {
+        case 0:
+            if misMatchedCards.isEmpty && matchedCards.isEmpty { toggleSelection(of: card) }
+            else { fourthCardSelected(card) }
+        case 1:
             toggleSelection(of: card)
-        } else if selectedCards.count == 2 {
+        case 2:
             toggleSelection(of: card)
-            setChecker()
-        } else if selectedCards.count == 3 {
-                if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
-                    
-                    //case in which the 3 cards were forming a set
-                    if doTheySet(cards: selectedCards) {
-                        //only change selection of card if it wasn't part of the set
-                        if !cards[selectedIndex].isSelected {
-                            toggleSelection(of: card)
-                        }
-                        removeSet()
-                        addCards()
-                        
-                    //case in which the 3 cards were not forming a set
-                    } else {
-                        //
-                        for misMatchedCard in misMatchedCards {
-                            if let index = cards.firstIndex(where: { $0.id == misMatchedCard.id }) {
-                                cards[index].isMisMatched.toggle()
-                                if !(selectedIndex == index) {
-                                    cards[index].isSelected.toggle()
-                                }
-                            }
-                        }
-                        if !cards[selectedIndex].isSelected {
-                            cards[selectedIndex].isSelected.toggle()
-                        }
-                    }
-                    
-                }
-
+            updateSelectionStatuses()
+        default: break
         }
         
-        
     }
+    
+    mutating func fourthCardSelected(_ card: Card) {
+        if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
+            if misMatchedCards.isEmpty {
+                if cards[selectedIndex].selectionStatus != .selected { toggleSelection(of: card) }
+                removeSet()
+                addCards()
+            } else {
+                cards[selectedIndex].selectionStatus = .selected
+                for misMatchedCard in misMatchedCards {
+                    if let index = cards.firstIndex(where: { $0.id == misMatchedCard.id }) {
+                        cards[index].selectionStatus = .notSelected
+                    }
+                }
+            }
+        }
+    }
+
     
     // MARK: - Private Methods
     mutating private func removeSet() {
         for matchedCard in matchedCards {
             if let index = cards.firstIndex(where: { $0.id == matchedCard.id }) {
-                cards[index].isSelected.toggle()
-                cards[index].isMatched.toggle()
-                cards[index].status = .hand
+                cards[index].selectionStatus = .notSelected
+                cards[index].deckStatus = .removed
             }
         }
     }
     
-    private func doTheySet(cards: [Card]) -> Bool {
+    private func setChecker(cards: [Card]) -> Bool {
         let features: [Int] = [0,1,2,3]
         var feats: [[String]] = [[], [], [], []]
         
         for card in cards {
             for feature in features {
                 switch feature {
-                case 0: feats[0].append(String(card.number))
-                case 1: feats[1].append(card.feature1)
-                case 2: feats[2].append(card.feature2)
-                case 3: feats[3].append(card.feature3)
+                case 0: feats[0].append(card.features[0])
+                case 1: feats[1].append(card.features[1])
+                case 2: feats[2].append(card.features[2])
+                case 3: feats[3].append(card.features[3])
                 default: break
                 }
             }
@@ -142,60 +128,33 @@ struct SetGame {
         return feats.allSatisfy({ $0.allThreeEqual || $0.allThreeDifferent })
     }
     
-    mutating private func setChecker() {
-        if doTheySet(cards: selectedCards) {
+    mutating private func updateSelectionStatuses() {
+        if setChecker(cards: selectedCards) {
             for card in selectedCards {
-                if let index = cards.firstIndex(where: { $0.id == card.id }) {
-                    cards[index].isMatched.toggle()
-                }
+                changeSelectionStatusOf(card, to: .matched)
             }
         } else {
             for card in selectedCards {
-                if let index = cards.firstIndex(where: { $0.id == card.id }) {
-                    cards[index].isMisMatched.toggle()
-                }
+                changeSelectionStatusOf(card, to: .misMatched)
             }
+        }
+    }
+    
+    private mutating func changeSelectionStatusOf(_ card: Card, to newStatus: Card.SelectionStatus) {
+        if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
+            cards[selectedIndex].selectionStatus = newStatus
         }
     }
     
     
     private mutating func toggleSelection(of card: Card) {
-        if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
-            cards[selectedIndex].isSelected.toggle()
+        if card.selectionStatus == .selected {
+            changeSelectionStatusOf(card, to: .notSelected)
+        } else {
+            changeSelectionStatusOf(card, to: .selected)
         }
     }
-    
-    private mutating func toggleMatching(of card: Card) {
-        if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
-            cards[selectedIndex].isMatched.toggle()
-        }
-    }
-    
-    private mutating func toggleMisMatching(of card: Card) {
-        if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
-            cards[selectedIndex].isMisMatched.toggle()
-        }
-    }
-    
-    // MARK: - Nested Types
-    struct Card: Identifiable, Equatable {
-        let number: Int
-        let feature1: String
-        let feature2: String
-        let feature3: String
         
-        var status: Status = .deck
-
-        var isSelected: Bool = false
-        var isMatched: Bool = false
-        var isMisMatched: Bool = false
-        
-        let id: UUID = UUID()
-        
-        enum Status {
-            case deck, table, hand
-        }
-    }
 }
 
 // MARK: - Extensions

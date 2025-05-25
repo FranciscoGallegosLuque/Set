@@ -11,7 +11,6 @@ import SwiftUI
 struct Cardify: ViewModifier {
     var selectionColor: Color
    
-    /// Returns a View with a 
     func body(content: Content) -> some View {
         ZStack {
             let base: RoundedRectangle = RoundedRectangle(cornerRadius: Constants.cornerRadius)

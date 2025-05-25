@@ -7,9 +7,11 @@
 
 import SwiftUI
 
+/// Returns a View of a Set card.
 struct CardView: View {
     private(set) var viewModel: SetGameViewModel
-    let card: SetGame.Card
+    
+    let card: Card
 
     var body: some View {
         cardContents
@@ -19,7 +21,7 @@ struct CardView: View {
     
     var cardContents: some View {
         VStack {
-            ForEach(0..<card.number, id: \.self) { _ in
+            ForEach(0..<card.numberOfItems, id: \.self) { _ in
                 viewModel.shape(for: card)
             }
         }
@@ -30,8 +32,6 @@ struct CardView: View {
     
     private struct Constants {
         static let cornerRadius: CGFloat = 12
-        static let lineWidth: CGFloat = 2
-        static let inset: CGFloat = 5
         struct FontSize {
             static let largest: CGFloat = 200
             static let smallest: CGFloat = 10
@@ -42,11 +42,9 @@ struct CardView: View {
 
 #Preview {
     CardView(viewModel: SetGameViewModel(),
-             card: SetGame.Card(
-                number: 2,
-                feature1: "red",
-                feature2: "diamond",
-                feature3: "striped"
+             card: Card(
+                numberOfItems: 2,
+                features: ["red", "diamond", "striped"]
         )
     )
 }

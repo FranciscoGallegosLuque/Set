@@ -13,32 +13,36 @@ class SetGameViewModel: ObservableObject {
     @Published var game: SetGame = createGame()
     
     //MARK: -Computed Properties
-    var cards: [SetGame.Card] {
+    var cards: [Card] {
         game.cards
     }
     
-    var deckCards: [SetGame.Card] {
+    var deckCards: [Card] {
         game.deckCards
     }
     
-    var tableCards: [SetGame.Card] {
+    var tableCards: [Card] {
         game.tableCards
     }
     
     //MARK: -Intents
     private static func createGame() -> SetGame {
         SetGame(
-            numbers: [1,2,3],
-            features1: ["red","blue","green"],
-            features2: ["diamond","rectangle","capsule"],
-            features3: ["solid","striped","empty"],
-            display: 12
+            theme: Theme(
+                features: [
+                    Theme.Feature(possibleValues: ["red","blue","green"]),
+                    Theme.Feature(possibleValues: ["diamond","rectangle","capsule"]),
+                    Theme.Feature(possibleValues: ["solid","striped","empty"]),
+                ]
+            ),
+            display: 12,
+            numberOfItems: [1, 2, 3]
         )
     }
     
     //MARK: -Public Methods
-    func color(for card: SetGame.Card) -> Color {
-        switch card.feature1 {
+    func color(for card: Card) -> Color {
+        switch card.features[0] {
         case "blue": return .blue
         case "red": return .red
         case "green": return .green
@@ -46,12 +50,12 @@ class SetGameViewModel: ObservableObject {
         }
     }
 
-    func cardBackgroundColor(for card: SetGame.Card) -> Color {
-        if card.isMatched {
+    func cardBackgroundColor(for card: Card) -> Color {
+        if card.selectionStatus == .matched {
             return .green.opacity(0.4)
-        } else if card.isMisMatched {
+        } else if card.selectionStatus == .misMatched {
             return .red.opacity(0.3)
-        } else if card.isSelected {
+        } else if card.selectionStatus == .selected {
             return .teal.opacity(0.4)
         } else {
             return .white
@@ -60,11 +64,11 @@ class SetGameViewModel: ObservableObject {
 
     
     @ViewBuilder
-    func shape(for card: SetGame.Card) -> some View {
-        switch card.feature2 {
-        case "diamond": applyShading(to: Diamond(), shading: card.feature3).aspectRatio(2, contentMode: .fit)
-        case "rectangle": applyShading(to: Rectangle(), shading: card.feature3).aspectRatio(2, contentMode: .fit)
-        case "capsule": applyShading(to: Capsule(), shading: card.feature3).aspectRatio(2, contentMode: .fit)
+    func shape(for card: Card) -> some View {
+        switch card.features[1] {
+        case "diamond": applyShading(to: Diamond(), shading: card.features[2]).aspectRatio(2, contentMode: .fit)
+        case "rectangle": applyShading(to: Rectangle(), shading: card.features[2]).aspectRatio(2, contentMode: .fit)
+        case "capsule": applyShading(to: Capsule(), shading: card.features[2]).aspectRatio(2, contentMode: .fit)
         default: Text("Error")
         }
     }
@@ -81,7 +85,7 @@ class SetGameViewModel: ObservableObject {
     }
     //MARK: -Intents
     
-    func select(_ card: SetGame.Card) {
+    func select(_ card: Card) {
         game.handleCardSelection(card: card)
     }
     

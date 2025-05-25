@@ -8,11 +8,9 @@
 import Foundation
 
 struct Theme {
-    let name: String
+    let features: [Feature]
     
-    let feature1: [String]
-    let feature2: [String]
-    let feature3: [String]
-    let feature4: [String]
-    
+    struct Feature {
+        let possibleValues: [String]
+    }
 }

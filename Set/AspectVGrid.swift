@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+/// A view that allocates items in a grid according to size. 
 struct AspectVGrid<Item: Identifiable, ItemView: View>: View {
     var items: [Item]
     var aspectRatio: CGFloat = 1
@@ -43,7 +44,6 @@ struct AspectVGrid<Item: Identifiable, ItemView: View>: View {
                 size: CGSize,
                 atAspectRatio aspectRatio: CGFloat
             ) -> CGFloat {
-                print(count)
                 let count = CGFloat(count)
                 var columnCount = 1.0
                 repeat {
@@ -52,7 +52,6 @@ struct AspectVGrid<Item: Identifiable, ItemView: View>: View {
                     
                     let rowCount = (count / columnCount).rounded(.up)
                     if rowCount * height < size.height {
-                        print((size.width / columnCount).rounded(.down))
                         return (size.width / columnCount).rounded(.down)
                     }
                     columnCount += 1
