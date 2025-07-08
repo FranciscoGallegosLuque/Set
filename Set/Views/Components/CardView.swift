@@ -11,7 +11,10 @@ import SwiftUI
 struct CardView: View {
     private(set) var viewModel: SetGameViewModel
     
+    
+    
     let card: Card
+    
 
     var body: some View {
         GeometryReader { geometry in

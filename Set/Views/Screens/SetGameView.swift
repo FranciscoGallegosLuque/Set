@@ -47,8 +47,7 @@ struct SetGameView: View {
     }
     
     var availableSetMessage: some View {
-        let message: String = viewModel.availableSet ? "Yes" : "No"
-        return Text("Available Set? \(message)")
+        Text("Available Set? \(viewModel.availableSet ? "Yes" : "No")")
     }
     
     @ViewBuilder
@@ -68,6 +67,7 @@ struct SetGameView: View {
                 .disabled(viewModel.deckCards.isEmpty)
         }
         .buttonStyle(.borderedProminent)
+        .padding()
     }
     
     /// A button that starts a new game, with random cards.

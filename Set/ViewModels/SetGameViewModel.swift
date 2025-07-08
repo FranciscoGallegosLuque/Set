@@ -33,7 +33,6 @@ class SetGameViewModel: ObservableObject {
         ]
     )
     
-    
     //MARK: -Computed Properties
     var cards: [Card] { game.cards }
     var deckCards: [Card] { game.deckCards }
