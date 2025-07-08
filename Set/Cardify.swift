@@ -13,17 +13,24 @@ struct Cardify: ViewModifier {
    
     func body(content: Content) -> some View {
         ZStack {
-            let base: RoundedRectangle = RoundedRectangle(cornerRadius: Constants.cornerRadius)
-            base.strokeBorder(lineWidth: Constants.lineWidth)
-                .background(base.fill(selectionColor))
-                .overlay(content)
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let height = geometry.size.height
+                let cornerRadius = min(width, height) * Constants.cornerRadius
+                let lineWidth = min(width, height) * Constants.lineWidth
+                let base: RoundedRectangle = RoundedRectangle(cornerRadius: cornerRadius)
+                base.strokeBorder(lineWidth: lineWidth)
+                    .background(base.fill(selectionColor))
+                    .overlay(content)
+                
+            }
         }
     }
     
     private struct Constants {
-        static let cornerRadius: CGFloat = 12
-        static let lineWidth: CGFloat = 2
-    }
+       static let cornerRadius: CGFloat = 0.1
+       static let lineWidth: CGFloat = 0.02
+   }
 }
 
 extension View {

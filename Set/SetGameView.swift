@@ -12,16 +12,17 @@ struct SetGameView: View {
     
     /// The ViewModel var
     @ObservedObject var viewModel: SetGameViewModel
-
     
     var body: some View {
         VStack {
             title
-            cards
+            score
+            availableSetMessage
+            gameStateContent
             controlButtons
         }
         .padding()
-        .background(Color(UIColor.secondarySystemBackground))
+        .background(Color(UIColor.systemGroupedBackground))
     }
     
     var title: some View {
@@ -31,12 +32,40 @@ struct SetGameView: View {
             .padding(.top)
     }
     
+    var gameEndedMessage: some View {
+        VStack {
+            Spacer()
+            Text("You won!")
+                .font(.largeTitle)
+            Spacer()
+        }
+    }
+    
+    var score: some View {
+        Text("Score: \(viewModel.score)")
+            .padding()
+    }
+    
+    var availableSetMessage: some View {
+        let message: String = viewModel.availableSet ? "Yes" : "No"
+        return Text("Available Set? \(message)")
+    }
+    
+    @ViewBuilder
+    private var gameStateContent: some View {
+        if viewModel.gameEnded {
+            gameEndedMessage
+        } else {
+            cardGrid
+        }
+    }
+    
     /// A stack of buttons to start a new game and deal new cards if requested.
     var controlButtons: some View {
-        HStack(spacing: 60) {
+        HStack(spacing: Constants.controlButtonsSpacing) {
             newGameButton
             dealCardsButton
-                .disabled(viewModel.deckCards.count == 0)
+                .disabled(viewModel.deckCards.isEmpty)
         }
         .buttonStyle(.borderedProminent)
     }
@@ -53,25 +82,26 @@ struct SetGameView: View {
     /// Whenever 3 non-matching cards are selected, deals 3 more cards. If 3 matching cards are selected, replaces the matching cards with 3 new cards.
     var dealCardsButton: some View {
         Button("Deal cards") {
-            viewModel.addThree()
+            viewModel.dealCards()
         }
         
     }
     
-    
-    var cards: some View {
-        AspectVGrid(viewModel.tableCards, aspectRatio: Constants.aspectRatio) { card in
+    var cardGrid: some View {
+        AspectVGrid(viewModel.tableCards, aspectRatio: Constants.cardsAspectRatio) { card in
             CardView(viewModel: viewModel, card: card)
                 .padding(Constants.cardsSpacing)
                 .onTapGesture {
                     viewModel.select(card)
                 }
         }
+        .background(Color(UIColor.systemGroupedBackground))
     }
     
     private struct Constants {
         static let cardsSpacing: CGFloat = 4
-        static let aspectRatio: CGFloat = 2/3
+        static let cardsAspectRatio: CGFloat = 2/3
+        static let controlButtonsSpacing: CGFloat = 60
     }
 }
 

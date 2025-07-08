@@ -8,11 +8,28 @@
 import SwiftUI
 
 struct StripedOverlay: View {
+    let numberOfLines: Int
+    let stripeWidth: CGFloat
+    
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        GeometryReader { geometry in
+            let scale = UIScreen.main.scale
+            let totalWidth = geometry.size.width
+            let spacing = totalWidth / CGFloat(numberOfLines - 1)
+            ZStack {
+                ForEach(0..<numberOfLines, id: \.self) { index in
+                    let rawX = spacing * CGFloat(index)
+                    let pixelAlignedX = (rawX * scale).rounded() / scale
+                    Rectangle()
+                        .frame(width: stripeWidth)
+                        .offset(x: pixelAlignedX)
+                }
+            }
+        }
+        
     }
 }
 
 #Preview {
-    StripedOverlay()
+    StripedOverlay(numberOfLines: 10, stripeWidth: 1)
 }

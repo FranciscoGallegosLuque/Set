@@ -9,40 +9,52 @@ import Foundation
 import SwiftUI
 
 class SetGameViewModel: ObservableObject {
+    //MARK: -Constants
+    private struct Constants {
+        static let defaultTableAmount: Int = 6
+        static let selectionColorOpacity: CGFloat = 0.2
+        static let shapeLineWidth: CGFloat = 1
+    }
+    
+    private struct Stripe {
+        static let cardsThreshold: Int = 25
+        static let bold: (count: Int, width: CGFloat) = (count: 20, width: 0.5)
+        static let fine: (count: Int, width: CGFloat) = (count: 30, width: 0.2)
+    }
+    
     //MARK: -Properties
     @Published var game: SetGame = createGame()
     
+    private static let mainTheme: Theme = Theme(
+        features: [
+            Theme.Feature(name: "color", possibleValues: ["red","blue","green"]),
+            Theme.Feature(name: "shape", possibleValues: ["diamond","squiggle","capsule"]),
+            Theme.Feature(name: "shading", possibleValues: ["solid","striped","empty"]),
+        ]
+    )
+    
+    
     //MARK: -Computed Properties
-    var cards: [Card] {
-        game.cards
-    }
-    
-    var deckCards: [Card] {
-        game.deckCards
-    }
-    
-    var tableCards: [Card] {
-        game.tableCards
-    }
-    
-    //MARK: -Intents
+    var cards: [Card] { game.cards }
+    var deckCards: [Card] { game.deckCards }
+    var tableCards: [Card] { game.tableCards }
+    var matchedCards: [Card] { game.matchedCards }
+    var gameEnded: Bool { game.gameEnded }
+    var score: Int { game.score }
+    var availableSet: Bool { game.availableSet }
+     
+    //MARK: -Factory
     private static func createGame() -> SetGame {
         SetGame(
-            theme: Theme(
-                features: [
-                    Theme.Feature(possibleValues: ["red","blue","green"]),
-                    Theme.Feature(possibleValues: ["diamond","rectangle","capsule"]),
-                    Theme.Feature(possibleValues: ["solid","striped","empty"]),
-                ]
-            ),
-            display: 12,
-            numberOfItems: [1, 2, 3]
+            theme: mainTheme,
+            tableAmount: Constants.defaultTableAmount,
         )
     }
     
     //MARK: -Public Methods
     func color(for card: Card) -> Color {
-        switch card.features[0] {
+        let cardColor = card.cardFeatures["color"]
+        switch cardColor {
         case "blue": return .blue
         case "red": return .red
         case "green": return .green
@@ -50,51 +62,75 @@ class SetGameViewModel: ObservableObject {
         }
     }
 
+    
     func cardBackgroundColor(for card: Card) -> Color {
-        if card.selectionStatus == .matched {
-            return .green.opacity(0.4)
-        } else if card.selectionStatus == .misMatched {
-            return .red.opacity(0.3)
-        } else if card.selectionStatus == .selected {
-            return .teal.opacity(0.4)
-        } else {
-            return .white
+        switch card.selectionStatus {
+        case .matched: return .green.opacity(Constants.selectionColorOpacity)
+        case .misMatched: return .red.opacity(Constants.selectionColorOpacity)
+        case .selected: return .teal.opacity(Constants.selectionColorOpacity)
+        case .notSelected: return Color(UIColor.systemGroupedBackground)
         }
     }
 
-    
     @ViewBuilder
     func shape(for card: Card) -> some View {
-        switch card.features[1] {
-        case "diamond": applyShading(to: Diamond(), shading: card.features[2]).aspectRatio(2, contentMode: .fit)
-        case "rectangle": applyShading(to: Rectangle(), shading: card.features[2]).aspectRatio(2, contentMode: .fit)
-        case "capsule": applyShading(to: Capsule(), shading: card.features[2]).aspectRatio(2, contentMode: .fit)
-        default: Text("Error")
+        let cardColor = color(for: card)
+        if let cardShape = card.cardFeatures["shape"], let cardShading = card.cardFeatures["shading"] {
+            switch cardShape {
+            case "diamond": applyShading(to: Diamond(), shading: cardShading, color: cardColor)
+            case "squiggle": applyShading(to: Squiggle(), shading: cardShading, color: cardColor)
+            case "capsule": applyShading(to: Capsule(), shading: cardShading, color: cardColor)
+            default: Text("Error")
+            }
         }
     }
+    
     
     //MARK: -Private Methods
     @ViewBuilder
-    private func applyShading(to shape: some Shape, shading: String) -> some View {
+    private func applyShading(to shape: some Shape, shading: String, color: Color) -> some View {
         switch shading {
         case "solid": shape
-        case "striped": shape.opacity(0.3)
-        case "empty": shape.stroke()
+        case "striped":
+            ZStack {
+                StripedOverlay(
+                    numberOfLines: stripesCalculator().count,
+                    stripeWidth: stripesCalculator().width)
+                        .clipShape(shape)
+                shape.stroke(color, lineWidth: Constants.shapeLineWidth)
+            }
+ 
+        case "empty": shape.stroke(lineWidth: Constants.shapeLineWidth)
         default: shape
         }
     }
+    
+    private func stripesCalculator() -> (count: Int, width: CGFloat){
+
+        if tableCards.count < Stripe.cardsThreshold {
+            return Stripe.bold
+        } else {
+            let scale = UIScreen.main.scale
+            return (Stripe.bold.count,
+                    max(Stripe.bold.width, 1 / scale)
+            )
+        }
+        
+    }
+    
     //MARK: -Intents
     
     func select(_ card: Card) {
         game.handleCardSelection(card: card)
     }
     
-    func addThree() {
-        game.addCards()
+    func dealCards() {
+        if !matchedCards.isEmpty { game.replaceCards() }
+        else { game.addCards() }
     }
     
     func startNewGame() {
-        self.game = SetGameViewModel.createGame() 
+        self.game = Self.createGame()
     }
     
 }
