@@ -10,14 +10,14 @@ import SwiftUI
 /// A View that show the Set Game.
 struct SetGameView: View {
     
-    /// The ViewModel var
+    /// The home screen View view model.
     @ObservedObject var viewModel: SetGameViewModel
     
     var body: some View {
         VStack {
             title
-            score
-            availableSetMessage
+//            score
+//            availableSetMessage
             gameStateContent
             controlButtons
         }
@@ -25,6 +25,7 @@ struct SetGameView: View {
         .background(Color(UIColor.systemGroupedBackground))
     }
     
+    /// The game title.
     var title: some View {
         Text("Set Game")
             .font(.largeTitle)
@@ -32,6 +33,7 @@ struct SetGameView: View {
             .padding(.top)
     }
     
+    /// A message shown when user selects all sets and wins.
     var gameEndedMessage: some View {
         VStack {
             Spacer()
@@ -41,11 +43,13 @@ struct SetGameView: View {
         }
     }
     
+    /// The current user's score.
     var score: some View {
         Text("Score: \(viewModel.score)")
             .padding()
     }
     
+    /// A message indicating whether there is an available set to be chosen in the table.
     var availableSetMessage: some View {
         Text("Available Set? \(viewModel.availableSet ? "Yes" : "No")")
     }
@@ -79,7 +83,8 @@ struct SetGameView: View {
     
     /// A button that deals 3 cards when requested.
     ///
-    /// Whenever 3 non-matching cards are selected, deals 3 more cards. If 3 matching cards are selected, replaces the matching cards with 3 new cards.
+    /// Whenever 3 non-matching cards are selected, deals 3 more cards.
+    /// If 3 matching cards are selected, replaces the matching cards with 3 new cards.
     var dealCardsButton: some View {
         Button("Deal cards") {
             viewModel.dealCards()
@@ -87,6 +92,7 @@ struct SetGameView: View {
         
     }
     
+    /// A grid of set cards.
     var cardGrid: some View {
         AspectVGrid(viewModel.tableCards, aspectRatio: Constants.cardsAspectRatio) { card in
             CardView(viewModel: viewModel, card: card)
@@ -104,7 +110,6 @@ struct SetGameView: View {
         static let controlButtonsSpacing: CGFloat = 60
     }
 }
-
 
 #Preview {
     SetGameView(viewModel: SetGameViewModel())

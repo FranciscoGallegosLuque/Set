@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+/// A View of a squiggle shape with scaling capacities.
 struct Squiggle: Shape {
     
     func path(in rect: CGRect) -> Path {

@@ -10,11 +10,7 @@ import SwiftUI
 /// Returns a View of a Set card.
 struct CardView: View {
     private(set) var viewModel: SetGameViewModel
-    
-    
-    
     let card: Card
-    
 
     var body: some View {
         GeometryReader { geometry in
@@ -22,16 +18,21 @@ struct CardView: View {
             let height = geometry.size.height
             let currentAspectRatio = (width / height)
             let padding = min(width, height) * Constants.padding
-            cardContents(aspectRatio: currentAspectRatio, padding: padding)
-                .cardify(selectionColor: viewModel.cardBackgroundColor(for: card))
+            cardContents(aspectRatio: currentAspectRatio, padding)
+                .cardify(selectionColor: viewModel.selectionColor(for: card))
                 .foregroundStyle(viewModel.color(for: card))
         }
     }
     
-    func cardContents(aspectRatio: CGFloat, padding: CGFloat) -> some View {
+    /// Return a View with the contents shown by the card View.
+    /// - Parameters:
+    ///   - aspectRatio: Each symbols' card aspect ratio.
+    ///   - padding: Each symbol's padding.
+    /// - Returns: A View of the symbol or symbols to be displayed as Card contents.
+    private func cardContents(aspectRatio: CGFloat, _ padding: CGFloat) -> some View {
         VStack {
-            ForEach(0..<card.numberOfItems, id: \.self) { _ in
-                viewModel.shape(for: card)
+            ForEach(0..<card.numberOfFigures, id: \.self) { _ in
+                viewModel.symbolView(for: card)
                     .aspectRatio(aspectRatio * Constants.shapesAspectRatio, contentMode: .fit)
             }
         }
@@ -56,7 +57,7 @@ struct CardView: View {
 #Preview {
     CardView(viewModel: SetGameViewModel(),
              card: Card(
-                numberOfItems: 2, 
+                numberOfFigures: 2, 
                 cardFeatures: [
                     "color": "red",
                     "shape": "squiggle",

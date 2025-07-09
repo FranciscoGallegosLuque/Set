@@ -8,7 +8,6 @@
 import Foundation
 
 /// A Set game theme that defines what features the game has and how many cards form a set.
-/// Classic Set game's theme has color, shape, number and shading as features.
 struct Theme {
     
     var setSize: Int {
@@ -16,9 +15,11 @@ struct Theme {
     }
     
     let features: [Feature]
-
+    
     struct Feature {
         let name: String
         let possibleValues: [String]
     }
 }
+
+

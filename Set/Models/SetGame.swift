@@ -11,39 +11,46 @@ struct SetGame {
     
     // MARK: - Properties
     private(set) var cards: [Card]
-    private(set) var setSize: Int
+    private let gameSettings: GameSettings
+    private let setSize: Int // The number of cards that form a set.
+//    private let numberOfAddedCards: Int // The number of cards added when requested.
     private(set) var gameEnded: Bool = false
     private(set) var score = 0
     
     
     // MARK: - Init
-    init(theme: Theme, tableAmount: Int) {
+    /// Creates a Set Game with a given theme and initial number of cards to be displayed on the table.
+    /// - Parameters:
+    ///   - theme: The theme that defines the features and set size for the game.
+    ///   - initialNumberOfCards: The number of cards to be initially displayed on the table.
+    init(_ gameSettings: GameSettings) {
+        self.gameSettings = gameSettings
         self.cards = []
-        self.setSize = theme.setSize
+        self.setSize = gameSettings.theme.features.count
         
-        let features = theme.features
-        let combinations = cartesianProduct(features.map { $0.possibleValues })
+        let themeFeatures: [Theme.Feature] = gameSettings.theme.features
+        let featuresCombinations = cartesianProduct(themeFeatures.map { $0.possibleValues })
         
         var featuresNames: [String] = []
-        for feature in features {
-            featuresNames.append(feature.name)
+        for themeFeature in themeFeatures {
+            featuresNames.append(themeFeature.name)
         }
         
-        for i in 1...theme.setSize {
-            for combination in combinations {
-                let cardFeatures: [String: String] = Dictionary(uniqueKeysWithValues: zip(featuresNames, combination))
-                    cards.append(Card(numberOfItems: i, cardFeatures: cardFeatures))
+        for i in 1...gameSettings.theme.setSize {
+            for featuresCombination in featuresCombinations {
+                let cardFeaturesValues: [String: String] = Dictionary(uniqueKeysWithValues: zip(featuresNames, featuresCombination))
+                    cards.append(Card(numberOfFigures: i, cardFeatures: cardFeaturesValues))
                 }
             }
         
         cards = cards.shuffled()
         
         let cardsIndexes = Array(cards.indices)
-        let tableIndexes = Array(cardsIndexes.prefix(tableAmount))
+        let tableIndexes = Array(cardsIndexes.prefix(gameSettings.initialNumberOfCards))
         
-        for index in tableIndexes {
-            cards[index].deckStatus = .table
-        } 
+        for tableIndex in tableIndexes {
+            cards[tableIndex].deckStatus = .table
+        }
     }
     
     
@@ -53,22 +60,19 @@ struct SetGame {
     var misMatchedCards: [Card] { cards.filter { $0.selectionStatus == .misMatched } }
     var deckCards: [Card] { cards.filter { $0.deckStatus == .deck } }
     var tableCards: [Card] { cards.filter { $0.deckStatus == .table } }
-    var availableSet: Bool {
-        checkAvailableSet()
-    }
+    var availableSet: Bool { checkAvailableSet() }
     
     // MARK: - Public Methods
+    /// Adds a defined number of deck cards to the table.
     mutating func addCards() {
         if availableSet { score -= 3 }
+        guard matchedCards.isEmpty else { return }
         let addedCards = Array(deckCards.prefix(setSize))
-        if matchedCards.isEmpty {
-            for card in addedCards {
-                if let index = cards.firstIndex(where: { $0.id == card.id }) {
-                    cards[index].deckStatus = .table
-                }
+        for addedCard in addedCards {
+            if let addedCardIndex = cards.firstIndex(where: { $0.id == addedCard.id }) {
+                cards[addedCardIndex].deckStatus = .table
             }
         }
-        
     }
     
     mutating func replaceCards() {

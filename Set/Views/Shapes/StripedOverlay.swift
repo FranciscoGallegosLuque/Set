@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+/// A View of vertical stripes to be used as an overlay.
 struct StripedOverlay: View {
     let numberOfLines: Int
     let stripeWidth: CGFloat

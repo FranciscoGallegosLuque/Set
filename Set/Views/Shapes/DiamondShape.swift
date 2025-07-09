@@ -8,6 +8,7 @@
 import SwiftUI
 
 
+/// A View of a diamond shape.
 struct Diamond: Shape {
     func path(in rect: CGRect) -> Path {
         let start = CGPoint(x: rect.midX, y: rect.minY)

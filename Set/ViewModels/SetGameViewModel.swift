@@ -8,30 +8,13 @@
 import Foundation
 import SwiftUI
 
+
 class SetGameViewModel: ObservableObject {
-    //MARK: -Constants
-    private struct Constants {
-        static let defaultTableAmount: Int = 6
-        static let selectionColorOpacity: CGFloat = 0.2
-        static let shapeLineWidth: CGFloat = 1
-    }
     
-    private struct Stripe {
-        static let cardsThreshold: Int = 25
-        static let bold: (count: Int, width: CGFloat) = (count: 20, width: 0.5)
-        static let fine: (count: Int, width: CGFloat) = (count: 30, width: 0.2)
-    }
+    // The classic SetGame theme, with colors, shapes and shading.
     
     //MARK: -Properties
-    @Published var game: SetGame = createGame()
-    
-    private static let mainTheme: Theme = Theme(
-        features: [
-            Theme.Feature(name: "color", possibleValues: ["red","blue","green"]),
-            Theme.Feature(name: "shape", possibleValues: ["diamond","squiggle","capsule"]),
-            Theme.Feature(name: "shading", possibleValues: ["solid","striped","empty"]),
-        ]
-    )
+    @Published var game: SetGame = makeGame(GameConfig.classic)
     
     //MARK: -Computed Properties
     var cards: [Card] { game.cards }
@@ -43,14 +26,21 @@ class SetGameViewModel: ObservableObject {
     var availableSet: Bool { game.availableSet }
      
     //MARK: -Factory
-    private static func createGame() -> SetGame {
-        SetGame(
-            theme: mainTheme,
-            tableAmount: Constants.defaultTableAmount,
-        )
+    
+    /// Creates a new SetGame instance with a given theme and initial number of cards on table.
+    /// - Parameters:
+    ///   - theme: The theme that defines the features and set size for the game.
+    ///   - tableAmount: The number of cards to be initially placed on the table.
+    /// - Returns: A fully initialized `SetGame` instance
+    private static func makeGame(_ gameSettings: GameSettings) -> SetGame {
+        SetGame(gameSettings)
     }
     
     //MARK: -Public Methods
+    
+    /// Defines the UI Color for a given card content and borders.
+    /// - Parameter card: The card to be interpreted.
+    /// - Returns: The UI Color associated with the "color" feature of the card.
     func color(for card: Card) -> Color {
         let cardColor = card.cardFeatures["color"]
         switch cardColor {
@@ -62,7 +52,10 @@ class SetGameViewModel: ObservableObject {
     }
 
     
-    func cardBackgroundColor(for card: Card) -> Color {
+    /// Defines the UI Color used to show selection status for card.
+    /// - Parameter card: The card to be interpreted.
+    /// - Returns: The UI Color associated with the selection status of the card.
+    func selectionColor(for card: Card) -> Color {
         switch card.selectionStatus {
         case .matched: return .green.opacity(Constants.selectionColorOpacity)
         case .misMatched: return .red.opacity(Constants.selectionColorOpacity)
@@ -70,15 +63,17 @@ class SetGameViewModel: ObservableObject {
         case .notSelected: return Color(UIColor.systemGroupedBackground)
         }
     }
-
+    
+    /// Defines the symbol View used as shape in the card.
+    /// - Parameter card: The card to be interpreted.
+    /// - Returns: A View of the corresponding shape (diamond, squiggle or pill) with shading and color.
     @ViewBuilder
-    func shape(for card: Card) -> some View {
-        let cardColor = color(for: card)
+    func symbolView(for card: Card) -> some View {
         if let cardShape = card.cardFeatures["shape"], let cardShading = card.cardFeatures["shading"] {
             switch cardShape {
-            case "diamond": applyShading(to: Diamond(), shading: cardShading, color: cardColor)
-            case "squiggle": applyShading(to: Squiggle(), shading: cardShading, color: cardColor)
-            case "capsule": applyShading(to: Capsule(), shading: cardShading, color: cardColor)
+            case "diamond": applyShading(to: Diamond(), shading: cardShading)
+            case "squiggle": applyShading(to: Squiggle(), shading: cardShading)
+            case "capsule": applyShading(to: Capsule(), shading: cardShading)
             default: Text("Error")
             }
         }
@@ -86,26 +81,39 @@ class SetGameViewModel: ObservableObject {
     
     
     //MARK: -Private Methods
+    /// Returns a given shaded version of a given shape.
+    /// - Parameters:
+    ///   - shape: The shape View to be shaded (diamond, squiggle or pill).
+    ///   - shading: The shading to be applied to the shape.
+    /// - Returns: A View of a shaded version of the given shape.
     @ViewBuilder
-    private func applyShading(to shape: some Shape, shading: String, color: Color) -> some View {
+    private func applyShading(to shape: some Shape, shading: String) -> some View {
         switch shading {
         case "solid": shape
-        case "striped":
-            ZStack {
-                StripedOverlay(
-                    numberOfLines: stripesCalculator().count,
-                    stripeWidth: stripesCalculator().width)
-                        .clipShape(shape)
-                shape.stroke(color, lineWidth: Constants.shapeLineWidth)
-            }
- 
+        case "striped": makeStriped(shape)
         case "empty": shape.stroke(lineWidth: Constants.shapeLineWidth)
         default: shape
         }
     }
     
-    private func stripesCalculator() -> (count: Int, width: CGFloat){
-
+    /// Returns a striped version of a given shape.
+    /// - Parameter shape: The shape View to be shaded (diamond, squiggle or pill).
+    /// - Returns: A View of a striped version of the given shape.
+    private func makeStriped(_ shape: some Shape) -> some View {
+        ZStack {
+            let stripes = stripeSettings()
+            StripedOverlay(
+                numberOfLines: stripes.count,
+                stripeWidth: stripes.width)
+                    .clipShape(shape)
+            shape
+                .stroke(lineWidth: Constants.shapeLineWidth)
+        }
+    }
+    
+    /// Returns the amount and width of stripes of a striped shape
+    /// based on the actual amount of cards on the table.
+    private func stripeSettings() -> (count: Int, width: CGFloat){
         if tableCards.count < Stripe.cardsThreshold {
             return Stripe.bold
         } else {
@@ -114,24 +122,41 @@ class SetGameViewModel: ObservableObject {
                     max(Stripe.bold.width, 1 / scale)
             )
         }
-        
     }
     
     //MARK: -Intents
     
+    /// Indicates the Model the user's intent of selecting a card.
     func select(_ card: Card) {
         game.handleCardSelection(card: card)
     }
     
+    /// Indicates the Model the user's intent of dealing new cards.
     func dealCards() {
         if !matchedCards.isEmpty { game.replaceCards() }
         else { game.addCards() }
     }
     
+    /// Indicates the Model the user's intent of starting a new game.
     func startNewGame() {
-        self.game = Self.createGame()
+        self.game = Self.makeGame(GameConfig.classic)
     }
     
+}
+
+//MARK: -Constants
+private struct Constants {
+    static let initialNumberOfCards: Int = 12 // The initial number of cards displayed in the table.
+    static let numberOfCardsAdded: Int = 3
+    static let selectionColorOpacity: CGFloat = 0.2
+    static let shapeLineWidth: CGFloat = 1
+}
+
+private struct Stripe {
+    
+    static let cardsThreshold: Int = 25 // When this table cards' threshold is reached, stripes setting adapt to fit better on screen.
+    static let bold: (count: Int, width: CGFloat) = (count: 20, width: 0.5) // Stripes setting for few table cards on screen.
+    static let fine: (count: Int, width: CGFloat) = (count: 30, width: 0.2) // Stripes setting for many table cards on screen.
 }
 
 
