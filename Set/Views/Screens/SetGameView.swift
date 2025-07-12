@@ -13,12 +13,12 @@ struct SetGameView: View {
     /// The home screen View view model.
     @ObservedObject var viewModel: SetGameViewModel
     
+    
     var body: some View {
         VStack {
             title
-//            score
-//            availableSetMessage
             gameStateContent
+            cardsPiles
             controlButtons
         }
         .padding()
@@ -63,6 +63,43 @@ struct SetGameView: View {
         }
     }
     
+    var cardsPiles: some View {
+        HStack {
+            Spacer()
+            discardPile
+            Spacer()
+            deck
+            Spacer()
+        }
+        .padding()
+    }
+    
+    private var deckCards: [Card] { viewModel.deckCards }
+    private var removedCards: [Card] { viewModel.removedCards }
+    
+    var deck: some View {
+        ZStack {
+            ForEach(deckCards) { card in
+                CardView(viewModel: viewModel, card: card)
+            }
+        }
+        .frame(width: Constants.deckWidth, height: Constants.deckWidth / Constants.aspectRatio)
+    }
+    
+    @Namespace private var discardNamespace
+    
+    var discardPile: some View {
+        ZStack {
+            ForEach(removedCards) { card in
+                CardView(viewModel: viewModel, card: card)
+                    .matchedGeometryEffect(id: card.id, in: discardNamespace)
+            }
+        }
+        
+        .frame(width: Constants.deckWidth, height: Constants.deckWidth / Constants.aspectRatio)
+        
+    }
+    
     /// A stack of buttons to start a new game and deal new cards if requested.
     var controlButtons: some View {
         HStack(spacing: Constants.controlButtonsSpacing) {
@@ -94,20 +131,31 @@ struct SetGameView: View {
     
     /// A grid of set cards.
     var cardGrid: some View {
-        AspectVGrid(viewModel.tableCards, aspectRatio: Constants.cardsAspectRatio) { card in
-            CardView(viewModel: viewModel, card: card)
-                .padding(Constants.cardsSpacing)
-                .onTapGesture {
-                    viewModel.select(card)
-                }
+        AspectVGrid(viewModel.grid, aspectRatio: Constants.cardsAspectRatio) { slot in
+            if let card = slot.card {
+                CardView(viewModel: viewModel, card: card)
+                    .matchedGeometryEffect(id: card.id, in: discardNamespace)
+                    .transition(.asymmetric(insertion: .identity, removal: .identity))
+                    .padding(Constants.cardsSpacing)
+                    .onTapGesture {
+                        withAnimation {
+                            viewModel.select(card)
+                        }
+                    }
+                    .background(Color(UIColor.systemGroupedBackground))
+            } else {
+                Color.clear
+            }
+            
         }
-        .background(Color(UIColor.systemGroupedBackground))
     }
     
     private struct Constants {
         static let cardsSpacing: CGFloat = 4
         static let cardsAspectRatio: CGFloat = 2/3
         static let controlButtonsSpacing: CGFloat = 60
+        static let deckWidth: CGFloat = 50
+        static let aspectRatio: CGFloat = 2/3
     }
 }
 

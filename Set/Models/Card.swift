@@ -15,7 +15,16 @@ struct Card: Identifiable, Equatable, CustomDebugStringConvertible {
     var deckStatus: DeckStatus = .deck // Defines in which deck the card is.
     var selectionStatus: SelectionStatus = .notSelected // Defines if the card is selected or not.
     
-    let id: UUID = UUID() // The ID of the card.
+    var isFaceUp: Bool {
+        switch self.deckStatus {
+        case .table, .removed:
+            true
+        default:
+            false
+        }
+    }
+    
+    let id: UUID = UUID()
     
     enum DeckStatus {
         case deck, table, removed

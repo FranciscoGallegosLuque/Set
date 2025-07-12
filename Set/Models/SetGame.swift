@@ -13,7 +13,7 @@ struct SetGame {
     private(set) var cards: [Card]
     private let gameSettings: GameSettings
     private let setSize: Int // The number of cards that form a set.
-//    private let numberOfAddedCards: Int // The number of cards added when requested.
+    //    private let numberOfAddedCards: Int // The number of cards added when requested.
     private(set) var gameEnded: Bool = false
     private(set) var score = 0
     
@@ -39,9 +39,9 @@ struct SetGame {
         for i in 1...gameSettings.theme.setSize {
             for featuresCombination in featuresCombinations {
                 let cardFeaturesValues: [String: String] = Dictionary(uniqueKeysWithValues: zip(featuresNames, featuresCombination))
-                    cards.append(Card(numberOfFigures: i, cardFeatures: cardFeaturesValues))
-                }
+                cards.append(Card(numberOfFigures: i, cardFeatures: cardFeaturesValues))
             }
+        }
         
         cards = cards.shuffled()
         
@@ -59,13 +59,14 @@ struct SetGame {
     var matchedCards: [Card] { cards.filter { $0.selectionStatus == .matched } }
     var misMatchedCards: [Card] { cards.filter { $0.selectionStatus == .misMatched } }
     var deckCards: [Card] { cards.filter { $0.deckStatus == .deck } }
+    var removedCards: [Card] { cards.filter { $0.deckStatus == .removed }}
     var tableCards: [Card] { cards.filter { $0.deckStatus == .table } }
-    var availableSet: Bool { checkAvailableSet() }
+    var hasAvailableSet: Bool { checkAvailableSet() }
     
     // MARK: - Public Methods
     /// Adds a defined number of deck cards to the table.
     mutating func addCards() {
-        if availableSet { score -= 3 }
+        if hasAvailableSet { score -= 3 }
         guard matchedCards.isEmpty else { return }
         let addedCards = Array(deckCards.prefix(setSize))
         for addedCard in addedCards {
@@ -100,7 +101,7 @@ struct SetGame {
     
     func checkAvailableSet() -> Bool {
         let tableSubsets = subsetsFactory(of: tableCards, taking: setSize)
-        return tableSubsets.contains(where: { setChecker(cards: $0) })
+        return tableSubsets.contains(where: { isValidSet(cards: $0) })
     }
     
     mutating func handleCardSelection(card: Card) {
@@ -109,7 +110,7 @@ struct SetGame {
             if misMatchedCards.isEmpty && matchedCards.isEmpty {
                 toggleSelection(of: card)
             } else if card.selectionStatus != .matched {
-                fourthCardSelected(card)
+                handleFourthCardSelection(card)
             }
         } else if selectedCards.count == setSize - 1 {
             if card.selectionStatus == .selected {
@@ -123,14 +124,15 @@ struct SetGame {
         }
     }
     
-    mutating func fourthCardSelected(_ card: Card) {
+    mutating func handleFourthCardSelection(_ card: Card) {
         if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
             if misMatchedCards.isEmpty {
                 if deckCards.isEmpty {
                     removeCards()
                     if cards[selectedIndex].selectionStatus != .selected { toggleSelection(of: card) }
                 } else {
-                    replaceCards()
+                    removeCards()
+//                    replaceCards()
                     if cards[selectedIndex].selectionStatus != .selected { toggleSelection(of: card) }
                 }
             } else {
@@ -145,7 +147,7 @@ struct SetGame {
     
     // MARK: - Private Methods
     
-    private func setChecker(cards: [Card]) -> Bool {
+    private func isValidSet(cards: [Card]) -> Bool {
         let amountOfFeatures: Int = setSize
         guard cards.count == amountOfFeatures else { return false }
         guard let firstCard = cards.first else { return false }
@@ -162,7 +164,7 @@ struct SetGame {
     }
     
     mutating private func updateSelectionStatuses() {
-        if setChecker(cards: selectedCards) {
+        if isValidSet(cards: selectedCards) {
             for card in selectedCards {
                 changeSelectionStatusOf(card, to: .matched)
             }

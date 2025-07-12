@@ -15,15 +15,28 @@ class SetGameViewModel: ObservableObject {
     
     //MARK: -Properties
     @Published var game: SetGame = makeGame(GameConfig.classic)
+    var grid: [Slot] {
+        cards.compactMap { 
+            switch $0.deckStatus {
+            case .table:
+                Slot(card: $0)
+            case .removed:
+                Slot(card: nil)
+            case .deck:
+                nil
+            }
+        }
+    }
     
     //MARK: -Computed Properties
     var cards: [Card] { game.cards }
     var deckCards: [Card] { game.deckCards }
+    var removedCards: [Card] { game.removedCards }
     var tableCards: [Card] { game.tableCards }
     var matchedCards: [Card] { game.matchedCards }
     var gameEnded: Bool { game.gameEnded }
     var score: Int { game.score }
-    var availableSet: Bool { game.availableSet }
+    var availableSet: Bool { game.hasAvailableSet }
      
     //MARK: -Factory
     
@@ -44,7 +57,7 @@ class SetGameViewModel: ObservableObject {
     func color(for card: Card) -> Color {
         let cardColor = card.cardFeatures["color"]
         switch cardColor {
-        case "blue": return .blue
+        case "purple": return .purple
         case "red": return .red
         case "green": return .green
         default: return .black
@@ -141,6 +154,18 @@ class SetGameViewModel: ObservableObject {
     func startNewGame() {
         self.game = Self.makeGame(GameConfig.classic)
     }
+    
+    struct Slot: Identifiable {
+        let id: UUID = UUID()
+        let card: Card?
+    }
+    
+//    var grid: [SetGameViewModel.Slot] = []
+//    
+//    for tableCard in viewModel.tableCards {
+//        var slot = SetGameViewModel.Slot(isShowingCard: true)
+//        grid.append(slot)
+//    }
     
 }
 

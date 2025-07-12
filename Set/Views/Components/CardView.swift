@@ -19,7 +19,7 @@ struct CardView: View {
             let currentAspectRatio = (width / height)
             let padding = min(width, height) * Constants.padding
             cardContents(aspectRatio: currentAspectRatio, padding)
-                .cardify(selectionColor: viewModel.selectionColor(for: card))
+                .cardify(selectionColor: viewModel.selectionColor(for: card), isFaceUp: card.isFaceUp)
                 .foregroundStyle(viewModel.color(for: card))
         }
     }

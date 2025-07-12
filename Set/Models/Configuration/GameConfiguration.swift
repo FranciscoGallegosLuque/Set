@@ -14,7 +14,7 @@ struct GameConfig {
     static let classic = GameSettings(
         theme: Theme(
             features: [
-                Theme.Feature(name: "color", possibleValues: ["red","blue","green"]),
+                Theme.Feature(name: "color", possibleValues: ["red","purple","green"]),
                 Theme.Feature(name: "shape", possibleValues: ["diamond","squiggle","capsule"]),
                 Theme.Feature(name: "shading", possibleValues: ["solid","striped","empty"])
             ]
