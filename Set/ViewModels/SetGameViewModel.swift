@@ -10,21 +10,36 @@ import SwiftUI
 
 
 class SetGameViewModel: ObservableObject {
-    
-    // The classic SetGame theme, with colors, shapes and shading.
-    
+        
     //MARK: -Properties
-    @Published var game: SetGame = makeGame(GameConfig.classic)
-    var grid: [Slot] {
-        cards.compactMap { 
-            switch $0.deckStatus {
-            case .table:
-                Slot(card: $0)
-            case .removed:
-                Slot(card: nil)
-            case .deck:
-                nil
-            }
+    @Published var game: SetGame = SetGameViewModel.makeGame(GameConfig.classic)
+    var grid: [Slot] = []
+    
+//    var grid: [Slot] {
+//        get {
+//            cards.compactMap {
+//                switch $0.deckStatus {
+//                case .table:
+//                    Slot(card: $0)
+//                case .removed:
+//                    if wereMatchedCardsReplaced {
+//                        nil
+//                    } else {
+//                        Slot(card: nil)
+//                    }
+//                case .deck:
+//                    nil
+//                }
+//            }
+//        }
+//        set {
+//
+//        }
+//    }
+    
+    init() {
+        for tableCard in tableCards {
+            self.grid.append(Slot(cardID: tableCard.id, wasEmpty: false))
         }
     }
     
@@ -137,27 +152,80 @@ class SetGameViewModel: ObservableObject {
         }
     }
     
+    private func updateGrid() {
+        
+        for index in grid.indices {
+            if let cardID = grid[index].cardID {
+                if let card = cards.first(where: { $0.id == cardID }) {
+                    if card.deckStatus == .removed {
+                        let newSlot: Slot = Slot(cardID: nil, wasEmpty: true)
+                        grid[index] = newSlot
+                    }
+                }
+            }
+        }
+    }
+    
+
+    
     //MARK: -Intents
     
     /// Indicates the Model the user's intent of selecting a card.
     func select(_ card: Card) {
+//        if !matchedCards.isEmpty  { wereMatchedCardsReplaced = false }
         game.handleCardSelection(card: card)
+        
+        updateGrid()
+        print(grid)
     }
     
     /// Indicates the Model the user's intent of dealing new cards.
     func dealCards() {
-        if !matchedCards.isEmpty { game.replaceCards() }
-        else { game.addCards() }
+        print(grid)
+        game.addCards()
+        var newTableCards: [Card] = []
+        newTableCards = tableCards.filter { tableCard in
+            !grid.contains(where: { $0.cardID == tableCard.id })
+        }
+        print("new table cards: \(newTableCards)")
+        
+//        let addedCardsSlice = tableCards.suffix(game.setSize)
+//        var addedCards = Array(addedCardsSlice)
+//        print(grid)
+//        print(grid.count)
+        for index in grid.indices {
+            if grid[index].cardID == nil {
+                let newSlot: Slot = Slot(cardID: newTableCards.removeFirst().id, wasEmpty: true)
+                grid[index] = newSlot
+            }
+        }
+        
     }
     
     /// Indicates the Model the user's intent of starting a new game.
     func startNewGame() {
         self.game = Self.makeGame(GameConfig.classic)
+        grid = []
+        for tableCard in tableCards {
+            self.grid.append(Slot(cardID: tableCard.id, wasEmpty: false))
+        }
     }
     
-    struct Slot: Identifiable {
+    struct Slot: Identifiable, CustomDebugStringConvertible {
+        
         let id: UUID = UUID()
-        let card: Card?
+        let cardID: Card.ID?
+        let wasEmpty: Bool
+        
+        var debugDescription: String {
+            if cardID != nil {
+                "card: \(String(describing: cardID))"
+            } else {
+                "card: empty"
+            }
+            
+        }
+        
     }
     
 //    var grid: [SetGameViewModel.Slot] = []

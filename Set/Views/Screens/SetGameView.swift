@@ -81,9 +81,17 @@ struct SetGameView: View {
         ZStack {
             ForEach(deckCards) { card in
                 CardView(viewModel: viewModel, card: card)
+                    .matchedGeometryEffect(id: card.id, in: discardNamespace)
+                    .transition(.asymmetric(insertion: .identity, removal: .identity))
             }
         }
         .frame(width: Constants.deckWidth, height: Constants.deckWidth / Constants.aspectRatio)
+        .onTapGesture {
+            withAnimation {
+                viewModel.dealCards()
+            }
+        }
+        
     }
     
     @Namespace private var discardNamespace
@@ -93,6 +101,7 @@ struct SetGameView: View {
             ForEach(removedCards) { card in
                 CardView(viewModel: viewModel, card: card)
                     .matchedGeometryEffect(id: card.id, in: discardNamespace)
+                    .transition(.asymmetric(insertion: .identity, removal: .identity))
             }
         }
         
@@ -104,8 +113,8 @@ struct SetGameView: View {
     var controlButtons: some View {
         HStack(spacing: Constants.controlButtonsSpacing) {
             newGameButton
-            dealCardsButton
-                .disabled(viewModel.deckCards.isEmpty)
+//            dealCardsButton
+//                .disabled(viewModel.deckCards.isEmpty)
         }
         .buttonStyle(.borderedProminent)
         .padding()
@@ -122,28 +131,34 @@ struct SetGameView: View {
     ///
     /// Whenever 3 non-matching cards are selected, deals 3 more cards.
     /// If 3 matching cards are selected, replaces the matching cards with 3 new cards.
-    var dealCardsButton: some View {
-        Button("Deal cards") {
-            viewModel.dealCards()
-        }
-        
-    }
+//    var dealCardsButton: some View {
+//        Button("Deal cards") {
+//            withAnimation {
+//                viewModel.dealCards()
+//            }
+//        }
+//        
+//    }
     
     /// A grid of set cards.
     var cardGrid: some View {
         AspectVGrid(viewModel.grid, aspectRatio: Constants.cardsAspectRatio) { slot in
-            if let card = slot.card {
-                CardView(viewModel: viewModel, card: card)
-                    .matchedGeometryEffect(id: card.id, in: discardNamespace)
-                    .transition(.asymmetric(insertion: .identity, removal: .identity))
-                    .padding(Constants.cardsSpacing)
-                    .onTapGesture {
-                        withAnimation {
-                            viewModel.select(card)
+            if let cardID = slot.cardID {
+                if let card = viewModel.cards.first(where: { $0.id == cardID }) {
+                    CardView(viewModel: viewModel, card: card)
+                        .matchedGeometryEffect(id: card.id, in: discardNamespace)
+                        .transition(.asymmetric(insertion: .identity, removal: .identity))
+                        .padding(Constants.cardsSpacing)
+                        .onTapGesture {
+                            withAnimation {
+                                viewModel.select(card)
+                            }
                         }
-                    }
-                    .background(Color(UIColor.systemGroupedBackground))
-            } else {
+                        .background(Color(UIColor.systemGroupedBackground))
+                        .zIndex(slot.wasEmpty ? 1 : 0)
+                }
+            }
+            else {
                 Color.clear
             }
             

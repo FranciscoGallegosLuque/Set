@@ -12,7 +12,7 @@ struct SetGame {
     // MARK: - Properties
     private(set) var cards: [Card]
     private let gameSettings: GameSettings
-    private let setSize: Int // The number of cards that form a set.
+    let setSize: Int // The number of cards that form a set.
     //    private let numberOfAddedCards: Int // The number of cards added when requested.
     private(set) var gameEnded: Bool = false
     private(set) var score = 0
@@ -85,6 +85,12 @@ struct SetGame {
                     cards[matchedCardIndex].selectionStatus = .notSelected
                     cards[newCardIndex].deckStatus = .table
                     cards.swapAt(newCardIndex, matchedCardIndex)
+                    
+//                    for _ in 0..<setSize {
+//                        guard let removedIndex = cards.firstIndex(where: { $0.deckStatus == .removed }) else { return }
+//                        let removedCard = cards.remove(at: removedIndex)
+//                        cards.append(removedCard)
+//                    }
                 }
             }
         }
@@ -156,7 +162,7 @@ struct SetGame {
         for featuresName in featuresNames {
             let values = cards.map { $0.cardFeatures[featuresName] }
             if !(values.allThreeEqual || values.allThreeDifferent) {
-                return false
+                return true
             }
 
         }
