@@ -15,31 +15,9 @@ class SetGameViewModel: ObservableObject {
     @Published var game: SetGame = SetGameViewModel.makeGame(GameConfig.classic)
     var grid: [Slot] = []
     
-//    var grid: [Slot] {
-//        get {
-//            cards.compactMap {
-//                switch $0.deckStatus {
-//                case .table:
-//                    Slot(card: $0)
-//                case .removed:
-//                    if wereMatchedCardsReplaced {
-//                        nil
-//                    } else {
-//                        Slot(card: nil)
-//                    }
-//                case .deck:
-//                    nil
-//                }
-//            }
-//        }
-//        set {
-//
-//        }
-//    }
-    
     init() {
         for tableCard in tableCards {
-            self.grid.append(Slot(cardID: tableCard.id, wasEmpty: false))
+            self.grid.append(Slot(cardID: tableCard.id))
         }
     }
     
@@ -52,6 +30,12 @@ class SetGameViewModel: ObservableObject {
     var gameEnded: Bool { game.gameEnded }
     var score: Int { game.score }
     var availableSet: Bool { game.hasAvailableSet }
+    var newTableCards: [Card] = []
+    private var undealtTableCards: [Card] {
+        tableCards.filter { card in
+            !grid.contains(where: { $0.cardID == card.id })
+        }
+    }
      
     //MARK: -Factory
     
@@ -153,18 +137,16 @@ class SetGameViewModel: ObservableObject {
     }
     
     private func updateGrid() {
-        
         for index in grid.indices {
-            if let cardID = grid[index].cardID {
-                if let card = cards.first(where: { $0.id == cardID }) {
-                    if card.deckStatus == .removed {
-                        let newSlot: Slot = Slot(cardID: nil, wasEmpty: true)
-                        grid[index] = newSlot
-                    }
-                }
-            }
+            guard let cardID = grid[index].cardID,
+                  let card = cards.first(where: { $0.id == cardID }),
+                  card.deckStatus == .removed
+            else { continue }
+
+            grid[index] = Slot(cardID: nil)
         }
     }
+    
     
 
     
@@ -174,32 +156,36 @@ class SetGameViewModel: ObservableObject {
     func select(_ card: Card) {
 //        if !matchedCards.isEmpty  { wereMatchedCardsReplaced = false }
         game.handleCardSelection(card: card)
-        
         updateGrid()
-        print(grid)
     }
     
     /// Indicates the Model the user's intent of dealing new cards.
     func dealCards() {
-        print(grid)
-        game.addCards()
-        var newTableCards: [Card] = []
-        newTableCards = tableCards.filter { tableCard in
-            !grid.contains(where: { $0.cardID == tableCard.id })
+        if matchedCards.isEmpty {
+            game.addCards()
+        } else {
+            game.replaceCards()
+            updateGrid()
         }
-        print("new table cards: \(newTableCards)")
-        
-//        let addedCardsSlice = tableCards.suffix(game.setSize)
-//        var addedCards = Array(addedCardsSlice)
-//        print(grid)
-//        print(grid.count)
-        for index in grid.indices {
-            if grid[index].cardID == nil {
-                let newSlot: Slot = Slot(cardID: newTableCards.removeFirst().id, wasEmpty: true)
-                grid[index] = newSlot
+        newTableCards = undealtTableCards
+        var newTableCardsCopy = newTableCards
+        fillEmptySlots(with: &newTableCardsCopy)
+    }
+    
+    private func fillEmptySlots(with newCards: inout [Card]) {
+        if grid.contains(where: {$0.cardID == nil}) {
+            for index in grid.indices {
+                if grid[index].cardID == nil {
+                    if newCards.isEmpty { break }
+                    let newSlot: Slot = Slot(cardID: newCards.removeFirst().id)
+                    grid[index] = newSlot
+                }
+            }
+        } else {
+            for newTableCard in newTableCards {
+                grid.append(Slot(cardID: newTableCard.id))
             }
         }
-        
     }
     
     /// Indicates the Model the user's intent of starting a new game.
@@ -207,15 +193,19 @@ class SetGameViewModel: ObservableObject {
         self.game = Self.makeGame(GameConfig.classic)
         grid = []
         for tableCard in tableCards {
-            self.grid.append(Slot(cardID: tableCard.id, wasEmpty: false))
+            self.grid.append(Slot(cardID: tableCard.id))
         }
+    }
+    
+    func shuffleCards() {
+        grid.shuffle()
+        game.shuffle()
     }
     
     struct Slot: Identifiable, CustomDebugStringConvertible {
         
         let id: UUID = UUID()
         let cardID: Card.ID?
-        let wasEmpty: Bool
         
         var debugDescription: String {
             if cardID != nil {
@@ -227,13 +217,6 @@ class SetGameViewModel: ObservableObject {
         }
         
     }
-    
-//    var grid: [SetGameViewModel.Slot] = []
-//    
-//    for tableCard in viewModel.tableCards {
-//        var slot = SetGameViewModel.Slot(isShowingCard: true)
-//        grid.append(slot)
-//    }
     
 }
 

@@ -12,17 +12,27 @@ struct SetGameView: View {
     
     /// The home screen View view model.
     @ObservedObject var viewModel: SetGameViewModel
+    @Namespace private var pilesNamespace
     
+    private let dealAnimation: Animation = .easeInOut(duration: 0.6)
+    private let dealInterval: TimeInterval = 0.1
+    private var deckCards: [Card] { viewModel.deckCards }
+    private var removedCards: [Card] { viewModel.removedCards }
     
     var body: some View {
         VStack {
             title
+            availableSetMessage
             gameStateContent
             cardsPiles
             controlButtons
         }
         .padding()
-        .background(Color(UIColor.systemGroupedBackground))
+        .onAppear {
+            for card in viewModel.tableCards {
+                visuallyDealt.append(card.id)
+            }
+        }
     }
     
     /// The game title.
@@ -43,17 +53,13 @@ struct SetGameView: View {
         }
     }
     
-    /// The current user's score.
-    var score: some View {
-        Text("Score: \(viewModel.score)")
-            .padding()
-    }
     
     /// A message indicating whether there is an available set to be chosen in the table.
     var availableSetMessage: some View {
         Text("Available Set? \(viewModel.availableSet ? "Yes" : "No")")
     }
     
+    /// A conditional View that shows whether an end message if the player wins or the card grid.
     @ViewBuilder
     private var gameStateContent: some View {
         if viewModel.gameEnded {
@@ -63,6 +69,8 @@ struct SetGameView: View {
         }
     }
     
+    
+    /// A View showing the two piles of cards (deck and discard pile).
     var cardsPiles: some View {
         HStack {
             Spacer()
@@ -74,46 +82,89 @@ struct SetGameView: View {
         .padding()
     }
     
-    private var deckCards: [Card] { viewModel.deckCards }
-    private var removedCards: [Card] { viewModel.removedCards }
-    
-    var deck: some View {
-        ZStack {
-            ForEach(deckCards) { card in
-                CardView(viewModel: viewModel, card: card)
-                    .matchedGeometryEffect(id: card.id, in: discardNamespace)
-                    .transition(.asymmetric(insertion: .identity, removal: .identity))
-            }
-        }
-        .frame(width: Constants.deckWidth, height: Constants.deckWidth / Constants.aspectRatio)
-        .onTapGesture {
-            withAnimation {
-                viewModel.dealCards()
-            }
-        }
-        
+    func randomOffset(for card: Card) -> CGSize {
+        let seed = card.id.hashValue
+        let x = Double(seed % 1000) / 1000.0 - 0.5
+        let y = Double((seed / 1000) % 1000) / 1000.0 - 0.5
+        return CGSize(width: x * 1, height: y * 1)
     }
     
-    @Namespace private var discardNamespace
-    
+    /// A pile with the already matched cards.
     var discardPile: some View {
         ZStack {
             ForEach(removedCards) { card in
                 CardView(viewModel: viewModel, card: card)
-                    .matchedGeometryEffect(id: card.id, in: discardNamespace)
+                    .matchedGeometryEffect(id: card.id, in: pilesNamespace)
                     .transition(.asymmetric(insertion: .identity, removal: .identity))
+                    .offset(randomOffset(for: card))
             }
         }
-        
-        .frame(width: Constants.deckWidth, height: Constants.deckWidth / Constants.aspectRatio)
-        
+        .frame(
+            width: Constants.deckWidth,
+            height: Constants.deckWidth / Constants.aspectRatio
+        )
+    }
+    
+    
+    /// A pile with the deck of cards.
+    var deck: some View {
+        ZStack {
+            ForEach(deckCards.reversed()) { card in
+                CardView(viewModel: viewModel, card: card)
+                    .matchedGeometryEffect(id: card.id, in: pilesNamespace)
+                    .transition(.asymmetric(insertion: .identity, removal: .identity))
+                    .offset(randomOffset(for: card))
+            }
+        }
+        .frame(
+            width: Constants.deckWidth,
+            height: Constants.deckWidth / Constants.aspectRatio
+        )
+        .onTapGesture {
+            dealCards()
+        }
+    }
+    
+    @State private var visuallyDealt = [Card.ID]()
+    
+    private func isDealt(_ card: Card) -> Bool {
+        visuallyDealt.contains(card.id)
+    }
+    
+    private var undealtCards: [Card] {
+        viewModel.cards.filter { !isDealt($0) }
+    }
+    
+    func dealCards() {
+            withAnimation {
+                viewModel.dealCards()
+            }
+            let newCards = viewModel.newTableCards
+            var delay: TimeInterval = 0
+            for index in newCards.indices {
+                withAnimation(dealAnimation.delay(delay)) {
+                    visuallyDealt.append(newCards[index].id)
+                }
+                delay += dealInterval
+            }
+        }
+
+    
+    func selectCard(_ card: Card) {
+        if viewModel.matchedCards.isEmpty {
+            viewModel.select(card)
+        } else {
+            withAnimation {
+                viewModel.select(card)
+            }
+        }
     }
     
     /// A stack of buttons to start a new game and deal new cards if requested.
     var controlButtons: some View {
         HStack(spacing: Constants.controlButtonsSpacing) {
             newGameButton
-//            dealCardsButton
+            shuffleButton
 //                .disabled(viewModel.deckCards.isEmpty)
         }
         .buttonStyle(.borderedProminent)
@@ -124,46 +175,51 @@ struct SetGameView: View {
     var newGameButton: some View {
         Button("New Game") {
             viewModel.startNewGame()
+            for card in viewModel.tableCards {
+                visuallyDealt.append(card.id)
+            }
         }
+        
     }
     
     /// A button that deals 3 cards when requested.
     ///
     /// Whenever 3 non-matching cards are selected, deals 3 more cards.
     /// If 3 matching cards are selected, replaces the matching cards with 3 new cards.
-//    var dealCardsButton: some View {
-//        Button("Deal cards") {
-//            withAnimation {
-//                viewModel.dealCards()
-//            }
-//        }
-//        
-//    }
+    var shuffleButton: some View {
+        Button("Shuffle") {
+            withAnimation {
+                viewModel.shuffleCards()
+            }
+        }
+    }
+    
+    func computeZIndex(_ card: Card) -> Double {
+        visuallyDealt.suffix(3).contains(card.id) ? 1 : 0
+    }
     
     /// A grid of set cards.
     var cardGrid: some View {
         AspectVGrid(viewModel.grid, aspectRatio: Constants.cardsAspectRatio) { slot in
             if let cardID = slot.cardID {
                 if let card = viewModel.cards.first(where: { $0.id == cardID }) {
-                    CardView(viewModel: viewModel, card: card)
-                        .matchedGeometryEffect(id: card.id, in: discardNamespace)
-                        .transition(.asymmetric(insertion: .identity, removal: .identity))
-                        .padding(Constants.cardsSpacing)
-                        .onTapGesture {
-                            withAnimation {
-                                viewModel.select(card)
+                    if isDealt(card) {
+                        let zIndex = computeZIndex(card)
+                        CardView(viewModel: viewModel, card: card)
+                            .matchedGeometryEffect(id: card.id, in: pilesNamespace)
+                            .transition(.asymmetric(insertion: .identity, removal: .identity))
+                            .padding(Constants.cardsSpacing)
+                            .onTapGesture {
+                                selectCard(card)
                             }
-                        }
-                        .background(Color(UIColor.systemGroupedBackground))
-                        .zIndex(slot.wasEmpty ? 1 : 0)
+                            .zIndex(zIndex)
+                    } else { Color.clear }
                 }
-            }
-            else {
-                Color.clear
-            }
-            
+            } else { Color.clear }
         }
     }
+    
+    
     
     private struct Constants {
         static let cardsSpacing: CGFloat = 4

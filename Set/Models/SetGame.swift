@@ -13,7 +13,6 @@ struct SetGame {
     private(set) var cards: [Card]
     private let gameSettings: GameSettings
     let setSize: Int // The number of cards that form a set.
-    //    private let numberOfAddedCards: Int // The number of cards added when requested.
     private(set) var gameEnded: Bool = false
     private(set) var score = 0
     
@@ -27,21 +26,8 @@ struct SetGame {
         self.gameSettings = gameSettings
         self.cards = []
         self.setSize = gameSettings.theme.features.count
-        
-        let themeFeatures: [Theme.Feature] = gameSettings.theme.features
-        let featuresCombinations = cartesianProduct(themeFeatures.map { $0.possibleValues })
-        
-        var featuresNames: [String] = []
-        for themeFeature in themeFeatures {
-            featuresNames.append(themeFeature.name)
-        }
-        
-        for i in 1...gameSettings.theme.setSize {
-            for featuresCombination in featuresCombinations {
-                let cardFeaturesValues: [String: String] = Dictionary(uniqueKeysWithValues: zip(featuresNames, featuresCombination))
-                cards.append(Card(numberOfFigures: i, cardFeatures: cardFeaturesValues))
-            }
-        }
+    
+        generateDeck(from: gameSettings.theme)
         
         cards = cards.shuffled()
         
@@ -59,7 +45,7 @@ struct SetGame {
     var matchedCards: [Card] { cards.filter { $0.selectionStatus == .matched } }
     var misMatchedCards: [Card] { cards.filter { $0.selectionStatus == .misMatched } }
     var deckCards: [Card] { cards.filter { $0.deckStatus == .deck } }
-    var removedCards: [Card] { cards.filter { $0.deckStatus == .removed }}
+    var removedCards: [Card] = []
     var tableCards: [Card] { cards.filter { $0.deckStatus == .table } }
     var hasAvailableSet: Bool { checkAvailableSet() }
     
@@ -84,15 +70,24 @@ struct SetGame {
                     cards[matchedCardIndex].deckStatus = .removed
                     cards[matchedCardIndex].selectionStatus = .notSelected
                     cards[newCardIndex].deckStatus = .table
+                    removedCards.append(cards[matchedCardIndex])
                     cards.swapAt(newCardIndex, matchedCardIndex)
-                    
-//                    for _ in 0..<setSize {
-//                        guard let removedIndex = cards.firstIndex(where: { $0.deckStatus == .removed }) else { return }
-//                        let removedCard = cards.remove(at: removedIndex)
-//                        cards.append(removedCard)
-//                    }
                 }
             }
+        }
+    }
+    
+    mutating func shuffle() {
+        let tableCardIndices = cards.enumerated().compactMap { index, card in
+            card.deckStatus == .table ? index : nil
+        }
+        var tableCards: [Card] = []
+        for tableCardIndex in tableCardIndices {
+            tableCards.append(cards[tableCardIndex])
+        }
+        tableCards.shuffle()
+        for (i, index) in tableCardIndices.enumerated() {
+            cards[index] = tableCards[i]
         }
     }
     
@@ -101,6 +96,7 @@ struct SetGame {
             if let matchedCardIndex = cards.firstIndex(where: { $0.id == matchedCard.id }) {
                 cards[matchedCardIndex].deckStatus = .removed
                 cards[matchedCardIndex].selectionStatus = .notSelected
+                removedCards.append(cards[matchedCardIndex])
             }
         }
     }
@@ -111,7 +107,6 @@ struct SetGame {
     }
     
     mutating func handleCardSelection(card: Card) {
-        
         if selectedCards.isEmpty {
             if misMatchedCards.isEmpty && matchedCards.isEmpty {
                 toggleSelection(of: card)
@@ -133,14 +128,8 @@ struct SetGame {
     mutating func handleFourthCardSelection(_ card: Card) {
         if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
             if misMatchedCards.isEmpty {
-                if deckCards.isEmpty {
-                    removeCards()
-                    if cards[selectedIndex].selectionStatus != .selected { toggleSelection(of: card) }
-                } else {
-                    removeCards()
-//                    replaceCards()
-                    if cards[selectedIndex].selectionStatus != .selected { toggleSelection(of: card) }
-                }
+                removeCards()
+                if cards[selectedIndex].selectionStatus != .selected { toggleSelection(of: card) }
             } else {
                 toggleSelection(of: card)
                 for misMatchedCard in misMatchedCards {
@@ -153,6 +142,23 @@ struct SetGame {
     
     // MARK: - Private Methods
     
+    private mutating func generateDeck(from theme: Theme) {
+        let themeFeatures: [Theme.Feature] = gameSettings.theme.features
+        let featuresCombinations = cartesianProduct(themeFeatures.map { $0.possibleValues })
+        
+        var featuresNames: [String] = []
+        for themeFeature in themeFeatures {
+            featuresNames.append(themeFeature.name)
+        }
+        
+        for i in 1...gameSettings.theme.setSize {
+            for featuresCombination in featuresCombinations {
+                let cardFeaturesValues: [String: String] = Dictionary(uniqueKeysWithValues: zip(featuresNames, featuresCombination))
+                cards.append(Card(numberOfFigures: i, cardFeatures: cardFeaturesValues))
+            }
+        }
+    }
+    
     private func isValidSet(cards: [Card]) -> Bool {
         let amountOfFeatures: Int = setSize
         guard cards.count == amountOfFeatures else { return false }
@@ -164,7 +170,6 @@ struct SetGame {
             if !(values.allThreeEqual || values.allThreeDifferent) {
                 return true
             }
-
         }
         return true
     }
@@ -176,7 +181,7 @@ struct SetGame {
             }
             if tableCards.count == setSize {
                 removeCards()
-                gameEnded.toggle()
+                if deckCards.isEmpty { gameEnded.toggle() }
             }
             score += setSize
         } else {
