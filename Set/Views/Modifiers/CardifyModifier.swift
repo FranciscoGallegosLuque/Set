@@ -20,21 +20,18 @@ struct Cardify: ViewModifier {
                 let cornerRadius = min(width, height) * Constants.cornerRadius
                 let lineWidth = min(width, height) * Constants.lineWidth
                 let base: RoundedRectangle = RoundedRectangle(cornerRadius: cornerRadius)
-                base.strokeBorder(lineWidth: lineWidth)
+                base.strokeBorder(Constants.strokeColor, lineWidth: lineWidth)
                     .background(base.fill(selectionColor))
                     .overlay(content)
                     .opacity(isFaceUp ? 1 : 0)
-                base.fill(Constants.backColor)
-                    .opacity(isFaceUp ? 0 : 1)
-                
             }
         }
     }
     
     private struct Constants {
         static let cornerRadius: CGFloat = 0.1
-        static let lineWidth: CGFloat = 0.02
-        static let backColor = Color(red: 208/255, green: 188/255, blue: 238/255, opacity: 1.0)
+        static let lineWidth: CGFloat = 0.008
+        static let strokeColor: Color = Color(#colorLiteral(red: 0.2605174184, green: 0.2605243921, blue: 0.260520637, alpha: 1))
    }
 }
 

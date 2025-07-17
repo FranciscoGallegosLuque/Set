@@ -14,7 +14,6 @@ struct SetApp: App {
     var body: some Scene {
         WindowGroup {
             SetGameView(viewModel: game)
-                .preferredColorScheme(.dark)
         }
     }
 }

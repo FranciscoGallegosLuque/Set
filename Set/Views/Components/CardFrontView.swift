@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// Returns a View of a Set card.
+/// Returns a View of the front of a Set card.
 struct CardFrontView: View {
     private(set) var viewModel: SetGameViewModel
     let card: Card
@@ -46,7 +46,6 @@ struct CardFrontView: View {
     
     
     private struct Constants {
-        static let cornerRadius: CGFloat = 12
         static let padding: CGFloat = 0.18
         static let shapesAspectRatio: CGFloat = 3
         struct FontSize {

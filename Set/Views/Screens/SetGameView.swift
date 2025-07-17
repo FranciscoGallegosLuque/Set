@@ -9,19 +9,24 @@ import SwiftUI
 
 /// A View that show the Set Game.
 struct SetGameView: View {
+    // MARK: - State & Init
     
     /// The home screen View view model.
     @ObservedObject var viewModel: SetGameViewModel
     @Namespace private var pilesNamespace
     
-    private let dealAnimation: Animation = .easeInOut(duration: 0.6)
-    private let dealInterval: TimeInterval = 0.1
+    
+    // MARK: - Cards
+    @State private var visuallyDealt: [Card.ID] = []
     private var deckCards: [Card] { viewModel.deckCards }
     private var removedCards: [Card] { viewModel.removedCards }
+    private var undealtCards: [Card] { viewModel.cards.filter { !isDealt($0) } }
     
+    
+    // MARK: - Body
     var body: some View {
         VStack {
-            title
+            gameTitle
             availableSetMessage
             gameStateContent
             cardsPiles
@@ -35,24 +40,14 @@ struct SetGameView: View {
         }
     }
     
+    // MARK: - Main Subviews
     /// The game title.
-    var title: some View {
+    var gameTitle: some View {
         Text("Set Game")
             .font(.largeTitle)
             .fontWeight(.bold)
             .padding(.top)
     }
-    
-    /// A message shown when user selects all sets and wins.
-    var gameEndedMessage: some View {
-        VStack {
-            Spacer()
-            Text("You won!")
-                .font(.largeTitle)
-            Spacer()
-        }
-    }
-    
     
     /// A message indicating whether there is an available set to be chosen in the table.
     var availableSetMessage: some View {
@@ -69,138 +64,9 @@ struct SetGameView: View {
         }
     }
     
-    
-    /// A View showing the two piles of cards (deck and discard pile).
-    var cardsPiles: some View {
-        HStack {
-            Spacer()
-            discardPile
-            Spacer()
-            deck
-            Spacer()
-        }
-        .padding()
-    }
-    
-    func randomOffset(for card: Card) -> CGSize {
-        let seed = card.id.hashValue
-        let x = Double(seed % 1000) / 1000.0 - 0.5
-        let y = Double((seed / 1000) % 1000) / 1000.0 - 0.5
-        return CGSize(width: x * 1, height: y * 1)
-    }
-    
-    /// A pile with the already matched cards.
-    var discardPile: some View {
-        ZStack {
-            ForEach(removedCards) { card in
-                CardView(viewModel: viewModel, card: card)
-                    .matchedGeometryEffect(id: card.id, in: pilesNamespace)
-                    .transition(.asymmetric(insertion: .identity, removal: .identity))
-                    .offset(randomOffset(for: card))
-            }
-        }
-        .frame(
-            width: Constants.deckWidth,
-            height: Constants.deckWidth / Constants.aspectRatio
-        )
-    }
-    
-    
-    /// A pile with the deck of cards.
-    var deck: some View {
-        ZStack {
-            ForEach(deckCards.reversed()) { card in
-                CardView(viewModel: viewModel, card: card)
-                    .matchedGeometryEffect(id: card.id, in: pilesNamespace)
-                    .transition(.asymmetric(insertion: .identity, removal: .identity))
-                    .offset(randomOffset(for: card))
-            }
-        }
-        .frame(
-            width: Constants.deckWidth,
-            height: Constants.deckWidth / Constants.aspectRatio
-        )
-        .onTapGesture {
-            dealCards()
-        }
-    }
-    
-    @State private var visuallyDealt = [Card.ID]()
-    
-    private func isDealt(_ card: Card) -> Bool {
-        visuallyDealt.contains(card.id)
-    }
-    
-    private var undealtCards: [Card] {
-        viewModel.cards.filter { !isDealt($0) }
-    }
-    
-    func dealCards() {
-            withAnimation {
-                viewModel.dealCards()
-            }
-            let newCards = viewModel.newTableCards
-            var delay: TimeInterval = 0
-            for index in newCards.indices {
-                withAnimation(dealAnimation.delay(delay)) {
-                    visuallyDealt.append(newCards[index].id)
-                }
-                delay += dealInterval
-            }
-        }
-
-    
-    func selectCard(_ card: Card) {
-        if viewModel.matchedCards.isEmpty {
-            viewModel.select(card)
-        } else {
-            withAnimation {
-                viewModel.select(card)
-            }
-        }
-    }
-    
-    /// A stack of buttons to start a new game and deal new cards if requested.
-    var controlButtons: some View {
-        HStack(spacing: Constants.controlButtonsSpacing) {
-            newGameButton
-            shuffleButton
-//                .disabled(viewModel.deckCards.isEmpty)
-        }
-        .buttonStyle(.borderedProminent)
-        .padding()
-    }
-    
-    /// A button that starts a new game, with random cards.
-    var newGameButton: some View {
-        Button("New Game") {
-            viewModel.startNewGame()
-            for card in viewModel.tableCards {
-                visuallyDealt.append(card.id)
-            }
-        }
-        
-    }
-    
-    /// A button that deals 3 cards when requested.
-    ///
-    /// Whenever 3 non-matching cards are selected, deals 3 more cards.
-    /// If 3 matching cards are selected, replaces the matching cards with 3 new cards.
-    var shuffleButton: some View {
-        Button("Shuffle") {
-            withAnimation {
-                viewModel.shuffleCards()
-            }
-        }
-    }
-    
-    func computeZIndex(_ card: Card) -> Double {
-        visuallyDealt.suffix(3).contains(card.id) ? 1 : 0
-    }
-    
-    /// A grid of set cards.
+    /// A grid of cards.
     var cardGrid: some View {
-        AspectVGrid(viewModel.grid, aspectRatio: Constants.cardsAspectRatio) { slot in
+        AspectVGrid(viewModel.grid, aspectRatio: Constants.Layout.cardAspectRatio) { slot in
             if let cardID = slot.cardID {
                 if let card = viewModel.cards.first(where: { $0.id == cardID }) {
                     if isDealt(card) {
@@ -208,7 +74,7 @@ struct SetGameView: View {
                         CardView(viewModel: viewModel, card: card)
                             .matchedGeometryEffect(id: card.id, in: pilesNamespace)
                             .transition(.asymmetric(insertion: .identity, removal: .identity))
-                            .padding(Constants.cardsSpacing)
+                            .padding(Constants.Layout.cardSpacing)
                             .onTapGesture {
                                 selectCard(card)
                             }
@@ -219,14 +85,198 @@ struct SetGameView: View {
         }
     }
     
+    /// A message shown when user selects all sets and wins.
+    var gameEndedMessage: some View {
+        VStack {
+            Spacer()
+            Text("You won!")
+                .font(.largeTitle)
+            Spacer()
+        }
+    }
+    
+    /// A View showing the two piles of cards (deck and discard pile).
+    var cardsPiles: some View {
+        HStack {
+            Spacer()
+            discardPile
+            Spacer()
+            deckPile
+            Spacer()
+        }
+        .padding()
+    }
+    
+    /// A stack of buttons to start a new game and deal new cards if requested.
+    var controlButtons: some View {
+        HStack(spacing: Constants.Buttons.spacing) {
+            newGameButton
+            shuffleButton
+        }
+        .buttonStyle(.borderedProminent)
+        .padding()
+    }
+    
+    // MARK: - Piles
+    /// A pile with the already matched cards.
+    var discardPile: some View {
+        ZStack {
+            ForEach(removedCards) { card in
+                    CardView(viewModel: viewModel, card: card)
+                        .matchedGeometryEffect(id: card.id, in: pilesNamespace)
+                        .transition(.asymmetric(insertion: .identity, removal: .identity))
+                        .offset(randomOffset(for: card))
+                }
+            }
+            .frame(
+                width: Constants.Layout.deckWidth,
+                height: Constants.Layout.deckWidth / Constants.Layout.cardAspectRatio
+            )
+        }
+    
+    /// A pile with the deck of cards.
+    var deckPile: some View {
+        ZStack {
+            ForEach(deckCards) { card in
+                CardView(viewModel: viewModel, card: card)
+                    .matchedGeometryEffect(id: card.id, in: pilesNamespace)
+                    .transition(.asymmetric(insertion: .identity, removal: .identity))
+                    .offset(randomOffset(for: card))
+            }
+        }
+        .frame(
+            width: Constants.Layout.deckWidth,
+            height: Constants.Layout.deckWidth / Constants.Layout.cardAspectRatio
+        )
+        .onTapGesture {
+            animateDealingOfCards()
+        }
+    }
+
+    // MARK: - Buttons
+    /// A button that starts a new game, with random cards.
+    var newGameButton: some View {
+        Button("New Game") {
+            startNewGame()
+        }
+    }
     
     
+    /// A button that shuffles the visible cards.
+    var shuffleButton: some View {
+        Button("Shuffle") {
+            withAnimation {
+                viewModel.shuffleCards()
+            }
+        }
+    }
+    
+    // MARK: - User Actions
+    func animateDealingOfCards() {
+        withAnimation {
+            viewModel.dealCards()
+        }
+        let newCards = viewModel.newTableCards
+        var delay: TimeInterval =    0
+        for index in newCards.indices {
+            withAnimation(Constants.Animations.dealAnimation.delay(delay)) {
+                visuallyDealt.append(newCards[index].id)
+            }
+            delay += Constants.Animations.dealInterval
+        }
+    }
+    
+    func startNewGame() {
+        viewModel.moveCardsToDeck()
+        visuallyDealt = []
+        animateDealingOfCards()
+    }
+    
+    func selectCard(_ card: Card) {
+        viewModel.select(card)
+        if viewModel.isSetComplete {
+            withAnimation {
+                viewModel.updatePossibleSet()
+            }
+        }
+        if !viewModel.matchedCards.isEmpty {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                withAnimation {
+                    viewModel.removeCards()
+                }
+            }
+        } else if !viewModel.misMatchedCards.isEmpty {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                for misMatchedCard in viewModel.misMatchedCards {
+                    withAnimation {
+                        viewModel.deSelect(misMatchedCard)
+                    }
+                }
+            }
+        }
+    }
+
+    
+    // MARK: - Helpers
+    /// Computes the ZIndex of a given card based on if it is dealt or not.
+    /// - Parameter card: The card to be displayed.
+    /// - Returns: The zIndex of the given card.
+    func computeZIndex(_ card: Card) -> Double {
+        visuallyDealt.suffix(viewModel.game.setSize).contains(card.id) ? Constants.ZIndex.top : Constants.ZIndex.base
+    }
+    
+    /// Computes a random offset for a card displayed on a pile.
+    /// - Parameter card: The card to be displayed.
+    /// - Returns: The offset of the given card, both in x and y.
+    func randomOffset(for card: Card) -> CGSize {
+        let seed = card.id.hashValue
+        let modX = Constants.Offset.seedModX
+        let modY = Constants.Offset.seedModY
+        let centerBias = Constants.Offset.centerBias
+        let scale = Constants.Offset.scale
+        
+        let x = Double(seed % modX) / Double(modX) - centerBias
+        let y = Double((seed / modX) % modY) / Double(modY) - centerBias
+        
+        return CGSize(width: x * scale, height: y * scale)
+    }
+    
+    
+    /// Determines whether the card is visually dealt or not.
+    /// - Parameter card: The card to be check.
+    /// - Returns: `true` if the card is visually dealt; otherwise, `false`.
+    private func isDealt(_ card: Card) -> Bool {
+        visuallyDealt.contains(card.id)
+    }
+    
+    // MARK: - Constants
     private struct Constants {
-        static let cardsSpacing: CGFloat = 4
-        static let cardsAspectRatio: CGFloat = 2/3
-        static let controlButtonsSpacing: CGFloat = 60
-        static let deckWidth: CGFloat = 50
-        static let aspectRatio: CGFloat = 2/3
+        struct Layout {
+            static let cardAspectRatio: CGFloat = 2 / 3
+            static let cardSpacing: CGFloat = 4
+            static let deckWidth: CGFloat = 50
+        }
+
+        struct ZIndex {
+            static let top: Double = 1
+            static let base: Double = 0
+        }
+
+        struct Offset {
+            static let seedModX = 1000
+            static let seedModY = 1000
+            static let scale: CGFloat = 1.0
+            static let centerBias = 0.5
+        }
+
+        struct Animations {
+            static let dealAnimation: Animation = .easeInOut(duration: 0.6)
+            static let dealInterval: Double = 0.1
+        }
+
+        struct Buttons {
+            static let spacing: CGFloat = 60
+        }
     }
 }
 

@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// An Set card with a given number of items, features and a status.
+/// A Set card with a given number of items, features and a status.
 struct Card: Identifiable, Equatable, CustomDebugStringConvertible {
     let numberOfFigures: Int // The amount of figures the card has.
     let cardFeatures: [String: String]

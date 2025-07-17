@@ -10,12 +10,21 @@ import Foundation
 struct SetGame {
     
     // MARK: - Properties
-    private(set) var cards: [Card]
     private let gameSettings: GameSettings
-    let setSize: Int // The number of cards that form a set.
-    private(set) var gameEnded: Bool = false
-    private(set) var score = 0
+    private(set) var cards: [Card]
+    private(set) var gameEnded: Bool
+    var setSize: Int { gameSettings.theme.setSize }
     
+    // MARK: - Computed Properties
+    var selectedCards: [Card] { cards.filter { $0.selectionStatus == .selected } }
+    var matchedCards: [Card] { cards.filter { $0.selectionStatus == .matched } }
+    var misMatchedCards: [Card] { cards.filter { $0.selectionStatus == .misMatched } }
+    
+    var deckCards: [Card] { cards.filter { $0.deckStatus == .deck } }
+    var removedCards: [Card] { cards.filter { $0.deckStatus == .removed } }
+    var tableCards: [Card] { cards.filter { $0.deckStatus == .table } }
+    
+    var hasAvailableSet: Bool { checkAvailableSet() }
     
     // MARK: - Init
     /// Creates a Set Game with a given theme and initial number of cards to be displayed on the table.
@@ -25,123 +34,153 @@ struct SetGame {
     init(_ gameSettings: GameSettings) {
         self.gameSettings = gameSettings
         self.cards = []
-        self.setSize = gameSettings.theme.features.count
-    
+        self.gameEnded = false
+        
         generateDeck(from: gameSettings.theme)
-        
-        cards = cards.shuffled()
-        
-        let cardsIndexes = Array(cards.indices)
-        let tableIndexes = Array(cardsIndexes.prefix(gameSettings.initialNumberOfCards))
-        
-        for tableIndex in tableIndexes {
-            cards[tableIndex].deckStatus = .table
+        generateTableCards(with: gameSettings.initialNumberOfCards)
+    }
+
+    
+    // MARK: - Public Methods
+    
+    mutating func moveCardsToDeck() {
+        for card in cards {
+            updateCard(card) { card in
+                card.deckStatus = .deck
+                card.selectionStatus = .notSelected
+            }
         }
     }
     
+    mutating func dealCards() {
+        gameEnded = false
+        generateTableCards(with: gameSettings.initialNumberOfCards)
+    }
     
-    // MARK: - Computed Properties
-    var selectedCards: [Card] { cards.filter { $0.selectionStatus == .selected } }
-    var matchedCards: [Card] { cards.filter { $0.selectionStatus == .matched } }
-    var misMatchedCards: [Card] { cards.filter { $0.selectionStatus == .misMatched } }
-    var deckCards: [Card] { cards.filter { $0.deckStatus == .deck } }
-    var removedCards: [Card] = []
-    var tableCards: [Card] { cards.filter { $0.deckStatus == .table } }
-    var hasAvailableSet: Bool { checkAvailableSet() }
+    mutating func select(card: Card) {
+        toggleSelection(of: card)
+    }
+
+    mutating func deSelect(card: Card) {
+        updateCard(card) { card in
+            card.selectionStatus = .notSelected
+        }
+    }
     
-    // MARK: - Public Methods
+    /// Removes a set from the table.
+    mutating func removeCards() {
+        guard !matchedCards.isEmpty else { return }
+        for matchedCard in matchedCards {
+            updateCard(matchedCard) { card in
+                card.deckStatus = .removed
+                card.selectionStatus = .notSelected
+            }
+        }
+    }
+    
     /// Adds a defined number of deck cards to the table.
     mutating func addCards() {
-        if hasAvailableSet { score -= 3 }
         guard matchedCards.isEmpty else { return }
         let addedCards = Array(deckCards.prefix(setSize))
         for addedCard in addedCards {
-            if let addedCardIndex = cards.firstIndex(where: { $0.id == addedCard.id }) {
-                cards[addedCardIndex].deckStatus = .table
+            updateCard(addedCard) { card in
+                card.deckStatus = .table
             }
         }
     }
     
+    /// Replaces a selected set from the table with new deck cards.
     mutating func replaceCards() {
         let newCards = Array(deckCards.prefix(matchedCards.count))
-        for newCard in newCards {
+        
+        for (newCard, matchedCard) in zip(newCards, matchedCards) {
             if let newCardIndex = cards.firstIndex(where: { $0.id == newCard.id }) {
-                if let matchedCardIndex = cards.firstIndex(where: { $0.id == matchedCards.first?.id }) {
+                if let matchedCardIndex = cards.firstIndex(where: { $0.id == matchedCard.id }) {
+                    
                     cards[matchedCardIndex].deckStatus = .removed
                     cards[matchedCardIndex].selectionStatus = .notSelected
+                    
                     cards[newCardIndex].deckStatus = .table
-                    removedCards.append(cards[matchedCardIndex])
-                    cards.swapAt(newCardIndex, matchedCardIndex)
                 }
             }
         }
     }
     
-    mutating func shuffle() {
-        let tableCardIndices = cards.enumerated().compactMap { index, card in
-            card.deckStatus == .table ? index : nil
-        }
-        var tableCards: [Card] = []
-        for tableCardIndex in tableCardIndices {
-            tableCards.append(cards[tableCardIndex])
-        }
-        tableCards.shuffle()
-        for (i, index) in tableCardIndices.enumerated() {
-            cards[index] = tableCards[i]
+   
+    // MARK: - Private Helpers
+    
+    /// Updates a card by a given changes closure.
+    /// - Parameters:
+    ///   - card: The card to be updates.
+    ///   - changes: A changes closure.
+    private mutating func updateCard(_ card: Card, changes: (inout Card) -> Void) {
+        if let index = cards.firstIndex(where: { $0.id == card.id }) {
+            changes(&cards[index])
         }
     }
     
-    mutating func removeCards() {
-        for matchedCard in matchedCards {
-            if let matchedCardIndex = cards.firstIndex(where: { $0.id == matchedCard.id }) {
-                cards[matchedCardIndex].deckStatus = .removed
-                cards[matchedCardIndex].selectionStatus = .notSelected
-                removedCards.append(cards[matchedCardIndex])
+    /// Changes a given card selection status to a new one.
+    /// - Parameters:
+    ///   - card: The card to be updated.
+    ///   - newStatus: The new selection status of the card.
+    private mutating func changeSelectionStatusOf(_ card: Card, to newStatus: Card.SelectionStatus) {
+        if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
+            cards[selectedIndex].selectionStatus = newStatus
+        }
+    }
+    
+    /// Toggle the selection status of a card from selected to not selected.
+    /// - Parameter card: The card to be updated.
+    private mutating func toggleSelection(of card: Card) {
+        card.selectionStatus == .selected ? changeSelectionStatusOf(card, to: .notSelected) : changeSelectionStatusOf(card, to: .selected)
+    }
+    
+    /// Updates the selection status of cards when a possible set is selected on the table.
+    mutating func updateSelectionStatuses(cards: [Card]) {
+        if isValidSet(cards: cards) {
+            for card in cards {
+                changeSelectionStatusOf(card, to: .matched)
             }
-        }
-    }
-    
-    func checkAvailableSet() -> Bool {
-        let tableSubsets = subsetsFactory(of: tableCards, taking: setSize)
-        return tableSubsets.contains(where: { isValidSet(cards: $0) })
-    }
-    
-    mutating func handleCardSelection(card: Card) {
-        if selectedCards.isEmpty {
-            if misMatchedCards.isEmpty && matchedCards.isEmpty {
-                toggleSelection(of: card)
-            } else if card.selectionStatus != .matched {
-                handleFourthCardSelection(card)
-            }
-        } else if selectedCards.count == setSize - 1 {
-            if card.selectionStatus == .selected {
-                toggleSelection(of: card)
-            } else {
-                toggleSelection(of: card)
-                updateSelectionStatuses()
+            if tableCards.count == setSize {
+                removeCards()
+                if deckCards.isEmpty { gameEnded.toggle() }
             }
         } else {
-            toggleSelection(of: card)
-        }
-    }
-    
-    mutating func handleFourthCardSelection(_ card: Card) {
-        if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
-            if misMatchedCards.isEmpty {
-                removeCards()
-                if cards[selectedIndex].selectionStatus != .selected { toggleSelection(of: card) }
-            } else {
-                toggleSelection(of: card)
-                for misMatchedCard in misMatchedCards {
-                    changeSelectionStatusOf(misMatchedCard, to: .notSelected)
-                }
+            for card in cards {
+                changeSelectionStatusOf(card, to: .misMatched)
             }
         }
     }
 
     
-    // MARK: - Private Methods
+    /// Checks whether a possible set is currently on the table or not.
+    /// - Returns: `true` if there is a set on the table; `false` otherwise.
+    private func checkAvailableSet() -> Bool {
+        let tableSubsets = subsetsFactory(of: tableCards, taking: setSize)
+        return tableSubsets.contains(where: { isValidSet(cards: $0) })
+    }
     
+    /// Checks whether a group of cards forms a valid set or not.
+    /// - Parameter cards: The cards possibly forming a set.
+    /// - Returns: `true` if the cards form a valid set; `false` otherwise.
+    func isValidSet(cards: [Card]) -> Bool {
+        let amountOfFeatures: Int = setSize
+        guard cards.count == amountOfFeatures else { return false }
+        guard let firstCard = cards.first else { return false }
+        let featuresNames: [String] = Array(firstCard.cardFeatures.keys)
+
+        for featuresName in featuresNames {
+            let values = cards.map { $0.cardFeatures[featuresName] }
+            if !(values.allEqual || values.allDifferent) {
+                return false
+            }
+        }
+        return true
+    }
+    
+    // MARK: - Deck Generation
+    /// Generates a deck of cards with all the combinations of features given by the theme.
+    /// - Parameter theme: The Set mode defining the features shown in the cards.
     private mutating func generateDeck(from theme: Theme) {
         let themeFeatures: [Theme.Feature] = gameSettings.theme.features
         let featuresCombinations = cartesianProduct(themeFeatures.map { $0.possibleValues })
@@ -159,56 +198,22 @@ struct SetGame {
         }
     }
     
-    private func isValidSet(cards: [Card]) -> Bool {
-        let amountOfFeatures: Int = setSize
-        guard cards.count == amountOfFeatures else { return false }
-        guard let firstCard = cards.first else { return false }
-        let featuresNames: [String] = Array(firstCard.cardFeatures.keys)
-
-        for featuresName in featuresNames {
-            let values = cards.map { $0.cardFeatures[featuresName] }
-            if !(values.allThreeEqual || values.allThreeDifferent) {
-                return true
-            }
-        }
-        return true
-    }
-    
-    mutating private func updateSelectionStatuses() {
-        if isValidSet(cards: selectedCards) {
-            for card in selectedCards {
-                changeSelectionStatusOf(card, to: .matched)
-            }
-            if tableCards.count == setSize {
-                removeCards()
-                if deckCards.isEmpty { gameEnded.toggle() }
-            }
-            score += setSize
-        } else {
-            for card in selectedCards {
-                changeSelectionStatusOf(card, to: .misMatched)
-            }
-            score -= 1
-        }
-    }
-    
-    private mutating func changeSelectionStatusOf(_ card: Card, to newStatus: Card.SelectionStatus) {
-        if let selectedIndex = cards.firstIndex(where: { $0.id == card.id }) {
-            cards[selectedIndex].selectionStatus = newStatus
-        }
-    }
-    
-    
-    private mutating func toggleSelection(of card: Card) {
-        if card.selectionStatus == .selected {
-            changeSelectionStatusOf(card, to: .notSelected)
-        } else {
-            changeSelectionStatusOf(card, to: .selected)
-        }
-    }
+    /// Generates a random group of a given number of table cards.
+    private mutating func generateTableCards(with initialNumberOfCards: Int) {
+        cards.shuffle()
         
+        let initialTableCards = Array(cards.prefix(initialNumberOfCards))
+        
+        for card in initialTableCards {
+            updateCard(card) { $0.deckStatus = .table }
+        }
+    }
 }
 
+// MARK: - Utilities
+/// Creates all possible combination of a cartesian product of a given array of arrays.
+/// - Parameter arrays: The different subset to be combined.
+/// - Returns: An array of all the elements of the arrays combined in a cartesian product.
     private func cartesianProduct<T>(_ arrays: [[T]]) -> [[T]] {
         var result: [[T]] = [[]]
 
@@ -225,6 +230,11 @@ struct SetGame {
         return result
     }
 
+/// Return all the possible subsets of size n of a given set.
+/// - Parameters:
+///   - array: The given set from which the subset are going to be created.
+///   - n: The size of the subsets.
+/// - Returns: An array of all the possible subsets that can be formed.
     func subsetsFactory<T>(of array: [T], taking n: Int) -> [[T]] {
         guard n > 0 else { return [[]] }
         guard array.count >= n else { return [] }
@@ -251,15 +261,16 @@ struct SetGame {
 
 // MARK: - Extensions
 extension Array where Element: Equatable {
-    var allThreeEqual: Bool {
-        guard self.count == 3 else { return false }
-        return self[0] == self[1] && self[1] == self[2]
+    /// Returns a Boolean whether all the elements of the array are equal or not.
+    var allEqual: Bool {
+        guard let first = self.first else { return false }
+        return allSatisfy { $0 == first }
     }
 }
 
-extension Array where Element: Equatable {
-    var allThreeDifferent: Bool {
-        guard self.count == 3 else { return false }
-        return self[0] != self[1] && self[1] != self[2] && self[0] != self[2]
+extension Array where Element: Hashable {
+    /// Returns a Boolean whether all the elements of the array are different or not.
+    var allDifferent: Bool {
+        count == Set(self).count
     }
 }

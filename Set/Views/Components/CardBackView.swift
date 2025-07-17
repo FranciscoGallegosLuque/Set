@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+/// Returns a View of the back of a Set card.
 struct CardBackView: View {
     
     var body: some View {
@@ -20,26 +21,24 @@ struct CardBackView: View {
                 base.strokeBorder(Constants.borderColor, lineWidth: lineWidth)
                     .background(base.fill(Constants.backColor))
                     .overlay(setImage)
-                    .zIndex(0)
-                    
-                
             }
         }
     }
     
+    /// The Set game logo shown in the back of the card.
     var setImage: some View {
         Image("LaunchLogo")
             .resizable()
             .scaledToFit()
-            .rotationEffect(.degrees(90))
-            .zIndex(1)
+            .rotationEffect(Constants.rotation)
     }
     
     private struct Constants {
         static let cornerRadius: CGFloat = 0.1
-        static let lineWidth: CGFloat = 0.01
+        static let lineWidth: CGFloat = 0.008
         static let backColor = Color(red: 208/255, green: 188/255, blue: 238/255, opacity: 1.0)
         static let borderColor = Color.gray
+        static let rotation = Angle.degrees(90)
         struct FontSize {
             static let largest: CGFloat = 200
             static let smallest: CGFloat = 10
