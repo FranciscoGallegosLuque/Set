@@ -10,9 +10,9 @@ import SwiftUI
 
 /// A conditional View that return the front or the back of the Set card.
 struct CardView: View {
-    private(set) var viewModel: SetGameViewModel
-    
+    private(set) var cardViewModel: CardViewModel
     let card: Card
+    
     var wasMatched: Bool {
         card.selectionStatus == .matched
     }
@@ -20,10 +20,12 @@ struct CardView: View {
         card.selectionStatus == .misMatched
     }
     
-    init(viewModel: SetGameViewModel, card: Card) {
-        self.viewModel = viewModel
-        self.card = card
-    }
+    
+    
+//    init(card: Card) {
+//        self.card = card
+//        self.cardViewModel =
+//    }
     
     var scale: Double {
         wasMisMatched ? 0.9 : 1
@@ -36,7 +38,7 @@ struct CardView: View {
     var body: some View {
         Group {
             if card.isFaceUp {
-                CardFrontView(viewModel: viewModel, card: card)
+                CardFrontView(cardViewModel: cardViewModel, card: card)
             } else {
                 CardBackView()
             }
@@ -48,7 +50,7 @@ struct CardView: View {
 }
 
 #Preview {
-    CardView(viewModel: SetGameViewModel(),
+    CardView(cardViewModel: CardViewModel(tableCards: 12),
              card: Card(
                 numberOfFigures: 2,
                 cardFeatures: [

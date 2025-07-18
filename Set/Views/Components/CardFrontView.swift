@@ -9,7 +9,8 @@ import SwiftUI
 
 /// Returns a View of the front of a Set card.
 struct CardFrontView: View {
-    private(set) var viewModel: SetGameViewModel
+//    private(set) var viewModel: SetGameViewModel
+    private(set) var cardViewModel: CardViewModel
     let card: Card
 
     var body: some View {
@@ -19,8 +20,8 @@ struct CardFrontView: View {
             let currentAspectRatio = (width / height)
             let padding = min(width, height) * Constants.padding
             cardContents(aspectRatio: currentAspectRatio, padding)
-                .cardify(selectionColor: viewModel.selectionColor(for: card), isFaceUp: card.isFaceUp)
-                .foregroundStyle(viewModel.color(for: card))
+                .cardify(selectionColor: cardViewModel.selectionColor(for: card), isFaceUp: card.isFaceUp)
+                .foregroundStyle(cardViewModel.color(for: card))
               
 
         }
@@ -34,7 +35,7 @@ struct CardFrontView: View {
     private func cardContents(aspectRatio: CGFloat, _ padding: CGFloat) -> some View {
         VStack {
             ForEach(0..<card.numberOfFigures, id: \.self) { _ in
-                viewModel.symbolView(for: card)
+                cardViewModel.symbolView(for: card)
                     .aspectRatio(aspectRatio * Constants.shapesAspectRatio, contentMode: .fit)
             }
         }
@@ -57,8 +58,8 @@ struct CardFrontView: View {
 }
 
 #Preview {
-    CardFrontView(viewModel: SetGameViewModel(),
-             card: Card(
+    CardFrontView(cardViewModel: CardViewModel(tableCards: 12),
+                  card: Card(
                 numberOfFigures: 2,
                 cardFeatures: [
                     "color": "red",

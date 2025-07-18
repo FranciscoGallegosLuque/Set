@@ -71,7 +71,8 @@ struct SetGameView: View {
                 if let card = viewModel.cards.first(where: { $0.id == cardID }) {
                     if isDealt(card) {
                         let zIndex = computeZIndex(card)
-                        CardView(viewModel: viewModel, card: card)
+                        CardView(cardViewModel: CardViewModel(tableCards: viewModel.tableCards.count),
+                                 card: card)
                             .matchedGeometryEffect(id: card.id, in: pilesNamespace)
                             .transition(.asymmetric(insertion: .identity, removal: .identity))
                             .padding(Constants.Layout.cardSpacing)
@@ -122,7 +123,8 @@ struct SetGameView: View {
     var discardPile: some View {
         ZStack {
             ForEach(removedCards) { card in
-                    CardView(viewModel: viewModel, card: card)
+                    CardView(cardViewModel: CardViewModel(tableCards: viewModel.tableCards.count),
+                             card: card)
                         .matchedGeometryEffect(id: card.id, in: pilesNamespace)
                         .transition(.asymmetric(insertion: .identity, removal: .identity))
                         .offset(randomOffset(for: card))
@@ -134,11 +136,12 @@ struct SetGameView: View {
             )
         }
     
-    /// A pile with the deck of cards.
+    /// A pile with the deck of cards piled unevenly.
     var deckPile: some View {
         ZStack {
             ForEach(deckCards) { card in
-                CardView(viewModel: viewModel, card: card)
+                CardView(cardViewModel: CardViewModel(tableCards: viewModel.tableCards.count),
+                         card: card)
                     .matchedGeometryEffect(id: card.id, in: pilesNamespace)
                     .transition(.asymmetric(insertion: .identity, removal: .identity))
                     .offset(randomOffset(for: card))
@@ -172,12 +175,14 @@ struct SetGameView: View {
     }
     
     // MARK: - User Actions
+    
+    /// Animates the dealing of new cards.
     func animateDealingOfCards() {
         withAnimation {
             viewModel.dealCards()
         }
         let newCards = viewModel.newTableCards
-        var delay: TimeInterval =    0
+        var delay: TimeInterval = 0
         for index in newCards.indices {
             withAnimation(Constants.Animations.dealAnimation.delay(delay)) {
                 visuallyDealt.append(newCards[index].id)
@@ -186,35 +191,36 @@ struct SetGameView: View {
         }
     }
     
+    
+    /// Handles the animation of the user's intent of starting a new game.
     func startNewGame() {
         viewModel.moveCardsToDeck()
         visuallyDealt = []
         animateDealingOfCards()
     }
     
+    /// Handles the animation of the user's intent of selecting a card.
+    /// - Parameter card: The card selected.
     func selectCard(_ card: Card) {
         viewModel.select(card)
+        
         if viewModel.isSetComplete {
             withAnimation {
                 viewModel.updatePossibleSet()
             }
-        }
-        if !viewModel.matchedCards.isEmpty {
+            
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 withAnimation {
-                    viewModel.removeCards()
-                }
-            }
-        } else if !viewModel.misMatchedCards.isEmpty {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                for misMatchedCard in viewModel.misMatchedCards {
-                    withAnimation {
-                        viewModel.deSelect(misMatchedCard)
+                    if !viewModel.matchedCards.isEmpty {
+                        viewModel.removeCards()
+                    } else {
+                        viewModel.misMatchedCards.forEach { viewModel.deSelect($0) }
                     }
                 }
             }
         }
     }
+
 
     
     // MARK: - Helpers

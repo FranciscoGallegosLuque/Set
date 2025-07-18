@@ -11,12 +11,9 @@ import SwiftUI
 
 class SetGameViewModel: ObservableObject {
     
-    //MARK: -Published Properties
+    // MARK: - Published Properties
     @Published var game: SetGame = SetGame(GameConfig.classic)
     @Published var grid: [Slot] = []
-    var isSetComplete: Bool {
-        selectedCards.count == game.setSize
-    }
     
     // MARK: - State Tracking
     private(set) var removedCardIDsInOrder: [Card.ID] = []
@@ -44,104 +41,14 @@ class SetGameViewModel: ObservableObject {
             !grid.contains(where: { $0.cardID == card.id })
         }
     }
-    
     var gameEnded: Bool { game.gameEnded }
     var availableSet: Bool { game.hasAvailableSet }
-    
-    //MARK: -Factory
-    /// Creates a new SetGame instance with a given theme and initial number of cards on table.
-    /// - Parameters:
-    ///   - theme: The theme that defines the features and set size for the game.
-    ///   - tableAmount: The number of cards to be initially placed on the table.
-    /// - Returns: A fully initialized `SetGame` instance
-//    private static func restartGame() {
-//        game.restartGame()
-//    }
-    
-    //MARK: -Public Methods
-    /// Defines the UI Color for a given card content and borders.
-    /// - Parameter card: The card to be interpreted.
-    /// - Returns: The UI Color associated with the "color" feature of the card.
-    func color(for card: Card) -> Color {
-        let cardColor = card.cardFeatures["color"]
-        switch cardColor {
-        case "purple": return .purple
-        case "red": return .red
-        case "green": return .green
-        default: return .black
-        }
+    var isSetComplete: Bool {
+        selectedCards.count == game.setSize
     }
+
     
-    /// Defines the UI Color used to show selection status for card.
-    /// - Parameter card: The card to be interpreted.
-    /// - Returns: The UI Color associated with the selection status of the card.
-    func selectionColor(for card: Card) -> Color {
-        switch card.selectionStatus {
-        case .matched: return .green.opacity(Constants.Card.selectionColorOpacity)
-        case .misMatched: return .red.opacity(Constants.Card.selectionColorOpacity)
-        case .selected: return .teal.opacity(Constants.Card.selectionColorOpacity)
-        case .notSelected: return Color(UIColor.systemBackground)
-        }
-    }
-    
-    /// Defines the symbol View used as shape in the card.
-    /// - Parameter card: The card to be interpreted.
-    /// - Returns: A View of the corresponding shape (diamond, squiggle or pill) with shading and color.
-    @ViewBuilder
-    func symbolView(for card: Card) -> some View {
-        if let cardShape = card.cardFeatures["shape"], let cardShading = card.cardFeatures["shading"] {
-            switch cardShape {
-            case "diamond": applyShading(to: Diamond(), shading: cardShading)
-            case "squiggle": applyShading(to: Squiggle(), shading: cardShading)
-            case "capsule": applyShading(to: Capsule(), shading: cardShading)
-            default: Text("Error")
-            }
-        }
-    }
-    
-    //MARK: -Private Methods
-    /// Returns a given shaded version of a given shape.
-    /// - Parameters:
-    ///   - shape: The shape View to be shaded (diamond, squiggle or pill).
-    ///   - shading: The shading to be applied to the shape.
-    /// - Returns: A View of a shaded version of the given shape.
-    @ViewBuilder
-    private func applyShading(to shape: some Shape, shading: String) -> some View {
-        switch shading {
-        case "solid": shape
-        case "striped": makeStriped(shape)
-        case "empty": shape.stroke(lineWidth: Constants.Card.shapeLineWidth)
-        default: shape
-        }
-    }
-    
-    /// Returns a striped version of a given shape.
-    /// - Parameter shape: The shape View to be shaded (diamond, squiggle or pill).
-    /// - Returns: A View of a striped version of the given shape.
-    private func makeStriped(_ shape: some Shape) -> some View {
-        ZStack {
-            let stripes = stripeSettings()
-            StripedOverlay(
-                numberOfLines: stripes.count,
-                stripeWidth: stripes.width)
-                    .clipShape(shape)
-            shape
-                .stroke(lineWidth: Constants.Card.shapeLineWidth)
-        }
-    }
-    
-    /// Returns the amount and width of stripes of a striped shape
-    /// based on the actual amount of cards on the table.
-    private func stripeSettings() -> (count: Int, width: CGFloat){
-        if tableCards.count < Constants.Stripe.cardsThreshold {
-            return Constants.Stripe.bold
-        } else {
-            let scale = UIScreen.main.scale
-            return (Constants.Stripe.bold.count,
-                    max(Constants.Stripe.bold.width, 1 / scale)
-            )
-        }
-    }
+    // MARK: - Private Methods
     
     /// Creates a new grid with the table cards.
     private func createNewGrid() {
@@ -196,26 +103,50 @@ class SetGameViewModel: ObservableObject {
         removedCardIDsInOrder.append(contentsOf: newlyRemoved.map { $0.id })
     }
     
+    /// Manages the initial deal when starting a new game.
+    private func startInitialDeal() {
+        game.dealCards()
+        createNewEmptyGrid()
+        newTableCards = tableCards
+        placeCardsOnGrid(from: newTableCards)
+    }
+    
+    /// Adds new cards to the table when the user taps the deck pile.
+    private func dealAdditionalCards() {
+        game.addCards()
+        newTableCards = undealtTableCards
+        placeCardsOnGrid(from: newTableCards)
+    }
+    
+    /// Removes the selected matched set and replaces it for new cards.
+    private func replaceMatchedCards() {
+        game.replaceCards()
+        updateRemovedCards(with: game.removedCards)
+        removeCardsFromSlots()
+        newTableCards = undealtTableCards
+        placeCardsOnGrid(from: newTableCards)
+    }
+    
+    /// Places new cards on the grid.
+    /// - Parameter cards: The new cards to be placed on the grid.
+    private func placeCardsOnGrid(from cards: [Card]) {
+        var copy = cards
+        fillEmptySlots(with: &copy)
+    }
+    
     //MARK: -Intents
     /// Manages grid updates and indicates the Model the user's intent of selecting a card.
     func select(_ card: Card) {
         game.select(card: card)
     }
     
-    func updatePossibleSet() {
-        game.updateSelectionStatuses(cards: selectedCards)
-    }
-    
+    /// Deselects a card when the user taps on a selected card.
+    /// - Parameter card: The card to be deselected.
     func deSelect(_ card: Card) {
         game.deSelect(card: card)
     }
     
-    func removeCards() {
-        game.removeCards()
-        updateRemovedCards(with: game.removedCards)
-        removeCardsFromSlots()
-    }
-    
+    /// Handles the dealing of new cards when the user taps on the deck pile.
     func dealCards() {
         switch (tableCards.isEmpty, matchedCards.isEmpty) {
         case (true, _):
@@ -228,55 +159,30 @@ class SetGameViewModel: ObservableObject {
             replaceMatchedCards()
         }
     }
-    
-    private func startInitialDeal() {
-        game.dealCards()
-        createNewEmptyGrid()
-        newTableCards = tableCards
-        placeCardsOnGrid(from: newTableCards)
-    }
-
-    private func dealAdditionalCards() {
-        game.addCards()
-        newTableCards = undealtTableCards
-        placeCardsOnGrid(from: newTableCards)
-    }
-
-    private func replaceMatchedCards() {
-        game.replaceCards()
-        updateRemovedCards(with: game.removedCards)
-        removeCardsFromSlots()
-        newTableCards = undealtTableCards
-        placeCardsOnGrid(from: newTableCards)
-    }
-
-    private func placeCardsOnGrid(from cards: [Card]) {
-        var copy = cards
-        fillEmptySlots(with: &copy)
-    }
-
-    func moveCardsToDeck() {
-        game.moveCardsToDeck()
-        removedCardIDsInOrder = []
-    }
-
+  
     /// Shuffles the Model's table cards and synchronises the View's grid to the changes.
     func shuffleCards() {
         grid = grid.shuffled()
     }
     
-    /// A space in a grid that may be empty or contain an object.
-    struct Slot: Identifiable, CustomDebugStringConvertible {
-        let id: UUID = UUID()
-        let cardID: Card.ID?
-        
-        var debugDescription: String {
-            if cardID != nil {
-                "card: \(String(describing: cardID))"
-            } else {
-                "card: empty"
-            }
-        }
+    // MARK: - Cards Updates
+    
+    /// Changes the state of a matched of mismatched set accordingly.
+    func updatePossibleSet() {
+        game.updateSelectionStatuses(cards: selectedCards)
+    }
+    
+    /// Removes the matched set from the table, updates the discard piles and removes the card views from grid's slot.
+    func removeCards() {
+        game.removeCards()
+        updateRemovedCards(with: game.removedCards)
+        removeCardsFromSlots()
+    }
+    
+    /// Updates table cards state to deck state and restarts the removed card pile to empty.
+    func moveCardsToDeck() {
+        game.moveCardsToDeck()
+        removedCardIDsInOrder = []
     }
 }
 
