@@ -175,6 +175,12 @@ struct SetGame {
                 return false
             }
         }
+        
+        let numberOfFiguresValues = cards.map { $0.numberOfFigures }
+        if !(numberOfFiguresValues.allEqual || numberOfFiguresValues.allDifferent) {
+            return false
+        }
+        
         return true
     }
     
